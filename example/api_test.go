@@ -304,10 +304,10 @@ func TestCreateBookFetchesCoverURL(t *testing.T) {
 	if len(reqs) != 1 {
 		t.Fatalf("expected cover service to be called once, got %d", len(reqs))
 	}
-	if !containsOnce([]byte(reqs[0].RawQuery), "title=") {
+	if reqs[0].Query().Get("title") == "" {
 		t.Errorf("cover service not called with title param, got query: %s", reqs[0].RawQuery)
 	}
-	if !containsOnce([]byte(reqs[0].RawQuery), "author=") {
+	if reqs[0].Query().Get("author") == "" {
 		t.Errorf("cover service not called with author param, got query: %s", reqs[0].RawQuery)
 	}
 }

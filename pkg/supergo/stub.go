@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"sync"
 	"testing"
 )
@@ -18,6 +19,12 @@ type CapturedRequest struct {
 	RawQuery string
 	Header   http.Header
 	Body     []byte
+}
+
+// Query parses RawQuery and returns the query parameters as url.Values.
+func (c *CapturedRequest) Query() url.Values {
+	v, _ := url.ParseQuery(c.RawQuery)
+	return v
 }
 
 // Stub is a real TCP HTTP server used to stand in for external services in tests.

@@ -500,6 +500,21 @@ func (s *spyT) Errorf(format string, args ...any) {
 	s.errors = append(s.errors, fmt.Sprintf(format, args...))
 }
 
+func TestStubCapturedRequestQuery(t *testing.T) {
+	stub := supergo.NewStub(t).
+		On("GET", "/search").RespondJSON(200, nil)
+
+	http.Get(stub.URL + "/search?foo=bar&baz=qux") //nolint:errcheck
+
+	reqs := stub.Received("GET", "/search")
+	if reqs[0].Query().Get("foo") != "bar" {
+		t.Errorf("expected foo=bar, got %s", reqs[0].Query().Get("foo"))
+	}
+	if reqs[0].Query().Get("baz") != "qux" {
+		t.Errorf("expected baz=qux, got %s", reqs[0].Query().Get("baz"))
+	}
+}
+
 func TestStubSequenceTwoCalls(t *testing.T) {
 	stub := supergo.NewStub(t).
 		On("GET", "/step").
