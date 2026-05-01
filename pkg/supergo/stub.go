@@ -52,6 +52,18 @@ func NewStub(t testing.TB) *Stub {
 	return s
 }
 
+// Strict enables strict mode: any request that does not match a registered On
+// route immediately fails the test. Call it before On:
+//
+//	supergo.NewStub(t).Strict().On("GET", "/cover").RespondJSON(200, ...)
+func (s *Stub) Strict() *Stub {
+	s.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		s.t.Errorf("supergo: unexpected request: %s %s", r.Method, r.URL.Path)
+		w.WriteHeader(http.StatusInternalServerError)
+	})
+	return s
+}
+
 // On registers a handler for the given method and path, returning a *StubRoute
 // for response configuration. method must be uppercase (e.g. "GET") and path
 // must start with "/" (e.g. "/cover").

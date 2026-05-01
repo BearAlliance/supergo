@@ -442,6 +442,29 @@ func TestStubRespondJSONDynamic(t *testing.T) {
 	}
 }
 
+func TestStubStrictFailsOnUnexpectedRequest(t *testing.T) {
+	spy := &spyT{T: t}
+	stub := supergo.NewStub(spy).Strict()
+
+	http.Get(stub.URL + "/unregistered") //nolint:errcheck
+
+	if len(spy.errors) == 0 {
+		t.Error("expected Strict to record an error for an unregistered route")
+	}
+}
+
+func TestStubStrictPassesForRegisteredRoute(t *testing.T) {
+	spy := &spyT{T: t}
+	stub := supergo.NewStub(spy).Strict().
+		On("GET", "/ping").RespondJSON(200, nil)
+
+	http.Get(stub.URL + "/ping") //nolint:errcheck
+
+	if len(spy.errors) != 0 {
+		t.Errorf("expected no errors for a registered route, got: %v", spy.errors)
+	}
+}
+
 func TestStubMustBeCalledPasses(t *testing.T) {
 	stub := supergo.NewStub(t).
 		On("GET", "/ping").MustBeCalled().RespondJSON(200, nil)

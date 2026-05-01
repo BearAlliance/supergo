@@ -334,6 +334,31 @@ func TestCreateBookCoverServiceUnavailable(t *testing.T) {
 		Test(t)
 }
 
+// TestCreateBookStrictStub shows Strict() and MustBeCalled() used together:
+// any unexpected outbound request fails the test immediately, and the cover
+// service must be called at least once.
+func TestCreateBookStrictStub(t *testing.T) {
+	stub := supergo.NewStub(t).
+		Strict().
+		On("GET", "/cover").
+		MustBeCalled().
+		RespondJSON(200, map[string]string{"url": "https://covers.example.com/book.jpg"})
+
+	store := newAPI()
+	agent := supergo.NewAgent(example.NewRouter(store, stub.URL))
+
+	agent.Post("/login").
+		SendJSON(map[string]string{"username": "admin", "password": "secret"}).
+		Expect(200).
+		Test(t)
+
+	agent.Post("/books").
+		SendJSON(example.Book{Title: "Clean Code", Author: "Martin"}).
+		Expect(201).
+		ExpectBodyContainsJSON("cover_url", "https://covers.example.com/book.jpg").
+		Test(t)
+}
+
 // TestCreateBookCoverURLReflectsTitle demonstrates a dynamic stub: the cover
 // service derives a title-specific URL from the incoming request's query params.
 // Two books are created; each gets a distinct cover URL matching its own title —
