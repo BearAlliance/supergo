@@ -425,6 +425,23 @@ func TestStubRespond(t *testing.T) {
 	}
 }
 
+func TestStubRespondJSONDynamic(t *testing.T) {
+	stub := supergo.NewStub(t).
+		On("GET", "/echo").RespondJSON(200, func(r *http.Request) any {
+			return map[string]string{"title": r.URL.Query().Get("title")}
+		})
+
+	resp, err := http.Get(stub.URL + "/echo?title=Dune")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	if !strings.Contains(string(body), "Dune") {
+		t.Errorf("expected body to contain Dune, got %s", body)
+	}
+}
+
 func TestStubRespondFn(t *testing.T) {
 	stub := supergo.NewStub(t).
 		On("GET", "/custom").RespondFn(func(w http.ResponseWriter, r *http.Request) {

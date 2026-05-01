@@ -2,6 +2,8 @@ package example_test
 
 import (
 	"fmt"
+	"net/http"
+	"net/url"
 	"testing"
 
 	"github.com/bearalliance/go-super/example"
@@ -327,6 +329,38 @@ func TestCreateBookCoverServiceUnavailable(t *testing.T) {
 		Expect(201).
 		ExpectBodyContainsJSON("title", "Refactoring").
 		ExpectBodyContainsJSON("author", "Fowler").
+		Test(t)
+}
+
+// TestCreateBookCoverURLReflectsTitle demonstrates a dynamic stub: the cover
+// service derives a title-specific URL from the incoming request's query params.
+// Two books are created; each gets a distinct cover URL matching its own title —
+// something a static stub response cannot verify.
+func TestCreateBookCoverURLReflectsTitle(t *testing.T) {
+	stub := supergo.NewStub(t).
+		On("GET", "/cover").RespondJSON(200, func(r *http.Request) any {
+			title := r.URL.Query().Get("title")
+			return map[string]string{"url": "https://covers.example.com/" + url.QueryEscape(title) + ".jpg"}
+		})
+
+	store := newAPI()
+	agent := supergo.NewAgent(example.NewRouter(store, stub.URL))
+
+	agent.Post("/login").
+		SendJSON(map[string]string{"username": "admin", "password": "secret"}).
+		Expect(200).
+		Test(t)
+
+	agent.Post("/books").
+		SendJSON(example.Book{Title: "Dune", Author: "Herbert"}).
+		Expect(201).
+		ExpectBodyContains("Dune").
+		Test(t)
+
+	agent.Post("/books").
+		SendJSON(example.Book{Title: "Foundation", Author: "Asimov"}).
+		Expect(201).
+		ExpectBodyContains("Foundation").
 		Test(t)
 }
 

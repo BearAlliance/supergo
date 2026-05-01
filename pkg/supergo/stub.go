@@ -110,10 +110,21 @@ func (sr *StubRoute) Respond(status int, body []byte) *Stub {
 	})
 }
 
-// RespondJSON registers a response that sets Content-Type: application/json,
-// writes status, and encodes v as JSON. v is marshalled at registration time;
-// an unencodable value panics immediately.
+// RespondJSON registers a response that sets Content-Type: application/json
+// and encodes v as JSON. v may be either:
+//
+//   - a static value, marshalled once at registration time (panics immediately
+//     if the value cannot be encoded), or
+//   - a func(*http.Request) any, called on every request so the response data
+//     can be derived from the incoming request (e.g. echoing a query parameter).
 func (sr *StubRoute) RespondJSON(status int, v any) *Stub {
+	if fn, ok := v.(func(*http.Request) any); ok {
+		return sr.RespondFn(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(status)
+			json.NewEncoder(w).Encode(fn(r)) //nolint:errcheck
+		})
+	}
 	b, err := json.Marshal(v)
 	if err != nil {
 		panic("supergo: RespondJSON could not encode value: " + err.Error())
