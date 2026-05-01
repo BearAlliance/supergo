@@ -442,6 +442,41 @@ func TestStubRespondJSONDynamic(t *testing.T) {
 	}
 }
 
+func TestStubMustBeCalledPasses(t *testing.T) {
+	stub := supergo.NewStub(t).
+		On("GET", "/ping").MustBeCalled().RespondJSON(200, nil)
+
+	http.Get(stub.URL + "/ping") //nolint:errcheck
+	// Cleanup runs after this test: no error expected.
+}
+
+func TestStubMustBeCalledFails(t *testing.T) {
+	spy := &spyT{T: t}
+
+	// Register our assertion first; t.Cleanup runs LIFO, so it fires after
+	// MustBeCalled's cleanup and can observe the captured error.
+	t.Cleanup(func() {
+		if len(spy.errors) == 0 {
+			t.Error("expected MustBeCalled to record an error for an uncalled route")
+		}
+	})
+
+	supergo.NewStub(spy).
+		On("GET", "/never").MustBeCalled().RespondJSON(200, nil)
+	// Never hit the stub — MustBeCalled cleanup should fire an error into spy.
+}
+
+// spyT captures Errorf calls without failing the real test, allowing tests to
+// assert that a piece of code under test *would* fail a test.
+type spyT struct {
+	*testing.T
+	errors []string
+}
+
+func (s *spyT) Errorf(format string, args ...any) {
+	s.errors = append(s.errors, fmt.Sprintf(format, args...))
+}
+
 func TestStubRespondFn(t *testing.T) {
 	stub := supergo.NewStub(t).
 		On("GET", "/custom").RespondFn(func(w http.ResponseWriter, r *http.Request) {

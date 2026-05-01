@@ -29,6 +29,7 @@ type Stub struct {
 	// URL is the base URL of the stub server (e.g. "http://127.0.0.1:PORT"),
 	// with no trailing slash. Pass it to the system under test.
 	URL    string
+	t      testing.TB
 	server *httptest.Server
 	mux    *http.ServeMux
 	mu     sync.Mutex
@@ -42,6 +43,7 @@ func NewStub(t testing.TB) *Stub {
 	server := httptest.NewServer(mux)
 	s := &Stub{
 		URL:    server.URL,
+		t:      t,
 		server: server,
 		mux:    mux,
 		calls:  make(map[string][]*CapturedRequest),
@@ -134,6 +136,20 @@ func (sr *StubRoute) RespondJSON(status int, v any) *Stub {
 		w.WriteHeader(status)
 		w.Write(b) //nolint:errcheck
 	})
+}
+
+// MustBeCalled registers a cleanup assertion that fails the test if this route
+// receives no requests by the time the test ends. Chain it before the terminal
+// Respond* call:
+//
+//	stub.On("GET", "/cover").MustBeCalled().RespondJSON(200, ...)
+func (sr *StubRoute) MustBeCalled() *StubRoute {
+	sr.stub.t.Cleanup(func() {
+		if len(sr.stub.Received(sr.method, sr.path)) == 0 {
+			sr.stub.t.Errorf("supergo: stub route %s %s was never called", sr.method, sr.path)
+		}
+	})
+	return sr
 }
 
 // RespondFn registers a raw HandlerFunc for this route, giving full control

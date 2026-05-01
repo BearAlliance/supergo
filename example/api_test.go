@@ -280,7 +280,9 @@ func TestAgentHistoryRecordsFullFlow(t *testing.T) {
 // includes the URL the stub provided.
 func TestCreateBookFetchesCoverURL(t *testing.T) {
 	stub := supergo.NewStub(t).
-		On("GET", "/cover").RespondJSON(200, map[string]string{"url": "https://covers.example.com/go-book.jpg"})
+		On("GET", "/cover").
+		MustBeCalled().
+		RespondJSON(200, map[string]string{"url": "https://covers.example.com/go-book.jpg"})
 
 	store := newAPI()
 	agent := supergo.NewAgent(example.NewRouter(store, stub.URL))
@@ -339,9 +341,9 @@ func TestCreateBookCoverServiceUnavailable(t *testing.T) {
 func TestCreateBookCoverURLReflectsTitle(t *testing.T) {
 	stub := supergo.NewStub(t).
 		On("GET", "/cover").RespondJSON(200, func(r *http.Request) any {
-			title := r.URL.Query().Get("title")
-			return map[string]string{"url": "https://covers.example.com/" + url.QueryEscape(title) + ".jpg"}
-		})
+		title := r.URL.Query().Get("title")
+		return map[string]string{"url": "https://covers.example.com/" + url.QueryEscape(title) + ".jpg"}
+	})
 
 	store := newAPI()
 	agent := supergo.NewAgent(example.NewRouter(store, stub.URL))
