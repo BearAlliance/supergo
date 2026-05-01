@@ -19,6 +19,11 @@ type Book struct {
 	CoverURL string `json:"cover_url,omitempty"`
 }
 
+// Config holds application-level settings for the example API.
+type Config struct {
+	CoverServiceURL string
+}
+
 // fetchCoverURL calls the external cover service to retrieve a cover image URL
 // for the given title and author. Returns an empty string on any failure.
 func fetchCoverURL(baseURL, title, author string) (string, error) {
@@ -115,14 +120,13 @@ func (ss *sessionStore) delete(token string) {
 }
 
 // NewRouter builds and returns the Gin engine with all routes registered.
-// Accepts a *Store so tests can inject a fresh one each time.
-// An optional coverServiceURL enables the external cover-image service; omit it
-// (or pass an empty string) to skip cover lookups.
-func NewRouter(store *Store, coverServiceURL ...string) *gin.Engine {
-	var coverSvcURL string
-	if len(coverServiceURL) > 0 {
-		coverSvcURL = coverServiceURL[0]
-	}
+// It uses the default zero-value Config.
+func NewRouter(store *Store) *gin.Engine {
+	return NewRouterWithConfig(store, Config{})
+}
+
+// NewRouterWithConfig builds the example API with explicit application config.
+func NewRouterWithConfig(store *Store, cfg Config) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 
@@ -213,8 +217,8 @@ func NewRouter(store *Store, coverServiceURL ...string) *gin.Engine {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid body"})
 			return
 		}
-		if coverSvcURL != "" {
-			if coverURL, err := fetchCoverURL(coverSvcURL, b.Title, b.Author); err == nil {
+		if cfg.CoverServiceURL != "" {
+			if coverURL, err := fetchCoverURL(cfg.CoverServiceURL, b.Title, b.Author); err == nil {
 				b.CoverURL = coverURL
 			}
 		}

@@ -119,8 +119,8 @@ stub := supergo.NewStub(t).
     On("GET", "/cover").
     RespondJSON(200, map[string]string{"url": "https://covers.example.com/dune.jpg"})
 
-// Pass stub.URL to the handler so it calls the stub instead of the real service.
-handler := NewRouter(store, stub.URL)
+// Pass config into the handler so it calls the stub instead of the real service.
+handler := NewRouterWithConfig(store, Config{CoverServiceURL: stub.URL})
 ```
 
 The server closes automatically via `t.Cleanup`.
@@ -214,7 +214,9 @@ func TestCreateBook(t *testing.T) {
         })
 
     store := NewStore()
-    agent := supergo.NewAgent(NewRouter(store, stub.URL))
+    agent := supergo.NewAgent(NewRouterWithConfig(store, Config{
+        CoverServiceURL: stub.URL,
+    }))
 
     agent.Post("/login").
         SendJSON(map[string]string{"username": "admin", "password": "secret"}).

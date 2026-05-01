@@ -279,13 +279,15 @@ func TestAgentHistoryRecordsFullFlow(t *testing.T) {
 // use supergo.NewStub to stand in for that service and verify the returned book
 // includes the URL the stub provided.
 func TestCreateBookFetchesCoverURL(t *testing.T) {
-	stub := supergo.NewStub(t).
+	coverService := supergo.NewStub(t).
 		On("GET", "/cover").
 		MustBeCalled().
 		RespondJSON(200, map[string]string{"url": "https://covers.example.com/go-book.jpg"})
 
 	store := newAPI()
-	agent := supergo.NewAgent(example.NewRouter(store, stub.URL))
+	agent := supergo.NewAgent(example.NewRouterWithConfig(store, example.Config{
+		CoverServiceURL: coverService.URL,
+	}))
 
 	agent.Post("/login").
 		SendJSON(map[string]string{"username": "admin", "password": "secret"}).
@@ -300,7 +302,7 @@ func TestCreateBookFetchesCoverURL(t *testing.T) {
 		Test(t)
 
 	// Verify the bookstore forwarded title and author to the cover service.
-	reqs := stub.Received("GET", "/cover")
+	reqs := coverService.Received("GET", "/cover")
 	if len(reqs) != 1 {
 		t.Fatalf("expected cover service to be called once, got %d", len(reqs))
 	}
@@ -315,11 +317,13 @@ func TestCreateBookFetchesCoverURL(t *testing.T) {
 // TestCreateBookCoverServiceUnavailable shows graceful degradation: if the
 // cover service is down the book is still created, just without a cover URL.
 func TestCreateBookCoverServiceUnavailable(t *testing.T) {
-	stub := supergo.NewStub(t).
+	coverService := supergo.NewStub(t).
 		On("GET", "/cover").Respond(503, nil)
 
 	store := newAPI()
-	agent := supergo.NewAgent(example.NewRouter(store, stub.URL))
+	agent := supergo.NewAgent(example.NewRouterWithConfig(store, example.Config{
+		CoverServiceURL: coverService.URL,
+	}))
 
 	agent.Post("/login").
 		SendJSON(map[string]string{"username": "admin", "password": "secret"}).
@@ -338,14 +342,16 @@ func TestCreateBookCoverServiceUnavailable(t *testing.T) {
 // any unexpected outbound request fails the test immediately, and the cover
 // service must be called at least once.
 func TestCreateBookStrictStub(t *testing.T) {
-	stub := supergo.NewStub(t).
+	coverService := supergo.NewStub(t).
 		Strict().
 		On("GET", "/cover").
 		MustBeCalled().
 		RespondJSON(200, map[string]string{"url": "https://covers.example.com/book.jpg"})
 
 	store := newAPI()
-	agent := supergo.NewAgent(example.NewRouter(store, stub.URL))
+	agent := supergo.NewAgent(example.NewRouterWithConfig(store, example.Config{
+		CoverServiceURL: coverService.URL,
+	}))
 
 	agent.Post("/login").
 		SendJSON(map[string]string{"username": "admin", "password": "secret"}).
@@ -364,14 +370,16 @@ func TestCreateBookStrictStub(t *testing.T) {
 // Two books are created; each gets a distinct cover URL matching its own title,
 // something a static stub response cannot verify.
 func TestCreateBookCoverURLReflectsTitle(t *testing.T) {
-	stub := supergo.NewStub(t).
+	coverService := supergo.NewStub(t).
 		On("GET", "/cover").RespondJSON(200, func(r *http.Request) any {
 		title := r.URL.Query().Get("title")
 		return map[string]string{"url": "https://covers.example.com/" + url.QueryEscape(title) + ".jpg"}
 	})
 
 	store := newAPI()
-	agent := supergo.NewAgent(example.NewRouter(store, stub.URL))
+	agent := supergo.NewAgent(example.NewRouterWithConfig(store, example.Config{
+		CoverServiceURL: coverService.URL,
+	}))
 
 	agent.Post("/login").
 		SendJSON(map[string]string{"username": "admin", "password": "secret"}).
@@ -394,13 +402,15 @@ func TestCreateBookCoverURLReflectsTitle(t *testing.T) {
 // TestCreateBookSequencedCovers shows Then* sequencing: each book creation gets
 // a distinct pre-set cover URL without needing a dynamic stub or shared state.
 func TestCreateBookSequencedCovers(t *testing.T) {
-	stub := supergo.NewStub(t).
+	coverService := supergo.NewStub(t).
 		On("GET", "/cover").
 		RespondJSON(200, map[string]string{"url": "https://covers.example.com/dune.jpg"}).
 		ThenRespondJSON(200, map[string]string{"url": "https://covers.example.com/foundation.jpg"})
 
 	store := newAPI()
-	agent := supergo.NewAgent(example.NewRouter(store, stub.URL))
+	agent := supergo.NewAgent(example.NewRouterWithConfig(store, example.Config{
+		CoverServiceURL: coverService.URL,
+	}))
 
 	agent.Post("/login").
 		SendJSON(map[string]string{"username": "admin", "password": "secret"}).
