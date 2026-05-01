@@ -2,7 +2,9 @@
 package example
 
 import (
+	"encoding/json"
 	"net/http"
+	"net/url"
 	"strconv"
 	"sync"
 
@@ -11,9 +13,28 @@ import (
 
 // Book is the domain model.
 type Book struct {
-	ID     int    `json:"id"`
-	Title  string `json:"title"`
-	Author string `json:"author"`
+	ID       int    `json:"id"`
+	Title    string `json:"title"`
+	Author   string `json:"author"`
+	CoverURL string `json:"cover_url,omitempty"`
+}
+
+// fetchCoverURL calls the external cover service to retrieve a cover image URL
+// for the given title and author. Returns an empty string on any failure.
+func fetchCoverURL(baseURL, title, author string) (string, error) {
+	params := url.Values{"title": {title}, "author": {author}}
+	resp, err := http.Get(baseURL + "/cover?" + params.Encode())
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	var result struct {
+		URL string `json:"url"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", err
+	}
+	return result.URL, nil
 }
 
 // Store is an in-memory book store.
@@ -95,7 +116,13 @@ func (ss *sessionStore) delete(token string) {
 
 // NewRouter builds and returns the Gin engine with all routes registered.
 // Accepts a *Store so tests can inject a fresh one each time.
-func NewRouter(store *Store) *gin.Engine {
+// An optional coverServiceURL enables the external cover-image service; omit it
+// (or pass an empty string) to skip cover lookups.
+func NewRouter(store *Store, coverServiceURL ...string) *gin.Engine {
+	var coverSvcURL string
+	if len(coverServiceURL) > 0 {
+		coverSvcURL = coverServiceURL[0]
+	}
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 
@@ -185,6 +212,11 @@ func NewRouter(store *Store) *gin.Engine {
 		if err := c.ShouldBindJSON(&b); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid body"})
 			return
+		}
+		if coverSvcURL != "" {
+			if coverURL, err := fetchCoverURL(coverSvcURL, b.Title, b.Author); err == nil {
+				b.CoverURL = coverURL
+			}
 		}
 		created := store.Add(b)
 		c.JSON(http.StatusCreated, created)
