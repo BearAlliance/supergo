@@ -119,11 +119,21 @@ stub := supergo.NewStub(t).
     On("GET", "/cover").
     RespondJSON(200, map[string]string{"url": "https://covers.example.com/dune.jpg"})
 
+client := supergo.NewOutboundHTTPClient(t, stub.URL)
+
 // Pass config into the handler so it calls the stub instead of the real service.
-handler := NewRouterWithConfig(store, Config{CoverServiceURL: stub.URL})
+handler := NewRouterWithConfig(store, Config{
+    CoverServiceURL: stub.URL,
+    HTTPClient:      client,
+})
 ```
 
 The server closes automatically via `t.Cleanup`.
+
+When you want to block accidental outbound HTTP in tests, inject an `HTTPClient`
+that only allows known destinations. In the example above, `supergo.NewOutboundHTTPClient`
+permits the stub URL; you can also pass additional known external base URLs for
+services you intentionally do not stub, such as a shared cache or database proxy.
 
 ### Response types
 
@@ -216,6 +226,7 @@ func TestCreateBook(t *testing.T) {
     store := NewStore()
     agent := supergo.NewAgent(NewRouterWithConfig(store, Config{
         CoverServiceURL: stub.URL,
+        HTTPClient:      supergo.NewOutboundHTTPClient(t, stub.URL),
     }))
 
     agent.Post("/login").

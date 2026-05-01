@@ -287,6 +287,7 @@ func TestCreateBookFetchesCoverURL(t *testing.T) {
 	store := newAPI()
 	agent := supergo.NewAgent(example.NewRouterWithConfig(store, example.Config{
 		CoverServiceURL: coverService.URL,
+		HTTPClient:      supergo.NewOutboundHTTPClient(t, coverService.URL),
 	}))
 
 	agent.Post("/login").
@@ -323,6 +324,7 @@ func TestCreateBookCoverServiceUnavailable(t *testing.T) {
 	store := newAPI()
 	agent := supergo.NewAgent(example.NewRouterWithConfig(store, example.Config{
 		CoverServiceURL: coverService.URL,
+		HTTPClient:      supergo.NewOutboundHTTPClient(t, coverService.URL),
 	}))
 
 	agent.Post("/login").
@@ -351,6 +353,7 @@ func TestCreateBookStrictStub(t *testing.T) {
 	store := newAPI()
 	agent := supergo.NewAgent(example.NewRouterWithConfig(store, example.Config{
 		CoverServiceURL: coverService.URL,
+		HTTPClient:      supergo.NewOutboundHTTPClient(t, coverService.URL),
 	}))
 
 	agent.Post("/login").
@@ -379,6 +382,7 @@ func TestCreateBookCoverURLReflectsTitle(t *testing.T) {
 	store := newAPI()
 	agent := supergo.NewAgent(example.NewRouterWithConfig(store, example.Config{
 		CoverServiceURL: coverService.URL,
+		HTTPClient:      supergo.NewOutboundHTTPClient(t, coverService.URL),
 	}))
 
 	agent.Post("/login").
@@ -410,6 +414,7 @@ func TestCreateBookSequencedCovers(t *testing.T) {
 	store := newAPI()
 	agent := supergo.NewAgent(example.NewRouterWithConfig(store, example.Config{
 		CoverServiceURL: coverService.URL,
+		HTTPClient:      supergo.NewOutboundHTTPClient(t, coverService.URL),
 	}))
 
 	agent.Post("/login").

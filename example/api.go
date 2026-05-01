@@ -22,13 +22,14 @@ type Book struct {
 // Config holds application-level settings for the example API.
 type Config struct {
 	CoverServiceURL string
+	HTTPClient      *http.Client
 }
 
 // fetchCoverURL calls the external cover service to retrieve a cover image URL
 // for the given title and author. Returns an empty string on any failure.
-func fetchCoverURL(baseURL, title, author string) (string, error) {
+func fetchCoverURL(client *http.Client, baseURL, title, author string) (string, error) {
 	params := url.Values{"title": {title}, "author": {author}}
-	resp, err := http.Get(baseURL + "/cover?" + params.Encode())
+	resp, err := client.Get(baseURL + "/cover?" + params.Encode())
 	if err != nil {
 		return "", err
 	}
@@ -127,6 +128,9 @@ func NewRouter(store *Store) *gin.Engine {
 
 // NewRouterWithConfig builds the example API with explicit application config.
 func NewRouterWithConfig(store *Store, cfg Config) *gin.Engine {
+	if cfg.HTTPClient == nil {
+		cfg.HTTPClient = http.DefaultClient
+	}
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 
@@ -218,7 +222,7 @@ func NewRouterWithConfig(store *Store, cfg Config) *gin.Engine {
 			return
 		}
 		if cfg.CoverServiceURL != "" {
-			if coverURL, err := fetchCoverURL(cfg.CoverServiceURL, b.Title, b.Author); err == nil {
+			if coverURL, err := fetchCoverURL(cfg.HTTPClient, cfg.CoverServiceURL, b.Title, b.Author); err == nil {
 				b.CoverURL = coverURL
 			}
 		}
