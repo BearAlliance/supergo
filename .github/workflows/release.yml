@@ -25,7 +25,7 @@ jobs:
         with:
           node-version: 22
       - name: Install semantic-release
-        run: npm install --no-save semantic-release @semantic-release/changelog @semantic-release/commit-analyzer @semantic-release/git @semantic-release/github @semantic-release/release-notes-generator
+        run: npm install --no-save semantic-release conventional-changelog-conventionalcommits
       - name: Run semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
