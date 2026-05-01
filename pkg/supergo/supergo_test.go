@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/bearalliance/go-super/pkg/supergo"
+	"github.com/bearalliance/supergo/pkg/supergo"
 )
 
 // testMux builds a simple handler used across tests.
@@ -428,8 +428,8 @@ func TestStubRespond(t *testing.T) {
 func TestStubRespondJSONDynamic(t *testing.T) {
 	stub := supergo.NewStub(t).
 		On("GET", "/echo").RespondJSON(200, func(r *http.Request) any {
-			return map[string]string{"title": r.URL.Query().Get("title")}
-		})
+		return map[string]string{"title": r.URL.Query().Get("title")}
+	})
 
 	resp, err := http.Get(stub.URL + "/echo?title=Dune")
 	if err != nil {
@@ -592,9 +592,9 @@ func TestStubSequenceThenRespondFn(t *testing.T) {
 func TestStubRespondFn(t *testing.T) {
 	stub := supergo.NewStub(t).
 		On("GET", "/custom").RespondFn(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(202)
-			w.Write([]byte("custom")) //nolint:errcheck
-		})
+		w.WriteHeader(202)
+		w.Write([]byte("custom")) //nolint:errcheck
+	})
 
 	resp, err := http.Get(stub.URL + "/custom")
 	if err != nil {

@@ -6,8 +6,8 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/bearalliance/go-super/example"
-	"github.com/bearalliance/go-super/pkg/supergo"
+	"github.com/bearalliance/supergo/example"
+	"github.com/bearalliance/supergo/pkg/supergo"
 )
 
 // newAPI returns a fresh router + store for each test so state never leaks.

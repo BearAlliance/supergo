@@ -1,4 +1,4 @@
-module github.com/bearalliance/go-super
+module github.com/bearalliance/supergo
 
 go 1.26.2
 
