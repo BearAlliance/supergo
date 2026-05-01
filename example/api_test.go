@@ -110,14 +110,14 @@ func TestCreateBookAuthenticated(t *testing.T) {
 	store := newAPI()
 	agent := supergo.NewAgent(example.NewRouter(store))
 
-	// Login first — agent persists the session cookie.
+	// Login first; agent persists the session cookie.
 	agent.Post("/login").
 		SendJSON(map[string]string{"username": "admin", "password": "secret"}).
 		Expect(200).
 		ExpectBodyContainsJSON("token", "tok-admin").
 		Test(t)
 
-	// Create a book — session cookie is sent automatically.
+	// Create a book; session cookie is sent automatically.
 	agent.Post("/books").
 		SendJSON(example.Book{Title: "Refactoring", Author: "Fowler"}).
 		Expect(201).
@@ -361,7 +361,7 @@ func TestCreateBookStrictStub(t *testing.T) {
 
 // TestCreateBookCoverURLReflectsTitle demonstrates a dynamic stub: the cover
 // service derives a title-specific URL from the incoming request's query params.
-// Two books are created; each gets a distinct cover URL matching its own title —
+// Two books are created; each gets a distinct cover URL matching its own title,
 // something a static stub response cannot verify.
 func TestCreateBookCoverURLReflectsTitle(t *testing.T) {
 	stub := supergo.NewStub(t).

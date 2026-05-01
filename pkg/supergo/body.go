@@ -53,7 +53,7 @@ func (m jsonDeepEqualMatcher) match(body []byte) error {
 }
 
 // jsonContainsMatcher checks that all keys/values in expected appear in actual
-// (subset check — extra keys in actual are allowed).
+// (subset check; extra keys in actual are allowed).
 type jsonContainsMatcher struct{ expected interface{} }
 
 func (m jsonContainsMatcher) match(body []byte) error {

@@ -1,7 +1,7 @@
 // Package supergo provides a supertest-inspired HTTP testing helper for Go.
 //
 // It wraps an [http.Handler] and exposes a fluent, chainable API for building
-// requests and asserting on responses — all in-process via [net/http/httptest],
+// requests and asserting on responses, all in-process via [net/http/httptest],
 // with no real TCP ports or cleanup needed.
 //
 // # One-shot requests

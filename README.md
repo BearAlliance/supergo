@@ -71,7 +71,7 @@ supergo.NewServer(&http.Server{Handler: mux}).
 | `Get / Post / Put / Patch / Delete / Head / Options(path)` | Start a request                                                   |
 | `.Set(key, value)`                                         | Add a header                                                      |
 | `.Auth(username, password)`                                | HTTP Basic Auth                                                   |
-| `.Send(body)`                                              | Send body — auto-detects JSON object/array vs plain text          |
+| `.Send(body)`                                              | Send body (auto-detects JSON object/array vs plain text)          |
 | `.SendJSON(v)`                                             | Explicitly JSON-encode v and set `Content-Type: application/json` |
 | `.SendForm(url.Values)`                                    | Send URL-encoded form data                                        |
 | `.Query(key, value)`                                       | Append a query parameter                                          |
@@ -89,7 +89,7 @@ All assertion methods return the request for chaining. Assertions run when `.Tes
 | `.ExpectBodyExact(expected)`           | Trimmed exact string match                                |
 | `.ExpectBodyContains(substr)`          | Body contains substring                                   |
 | `.ExpectBodyMatchesJSON(v)`            | Deep equality after JSON round-trip                       |
-| `.ExpectBodyContainsJSON(path, value)` | Dot-path traversal — `"users.0.name"`                     |
+| `.ExpectBodyContainsJSON(path, value)` | Dot-path traversal, e.g. `"users.0.name"`                 |
 | `.ExpectFn(func(*Response) error)`     | Custom assertion                                          |
 
 `.Test(t)` executes the request, runs all assertions, and returns `*Response` for further inspection.
@@ -129,7 +129,7 @@ The server closes automatically via `t.Cleanup`.
 // Static JSON (marshalled once at registration time)
 .RespondJSON(200, map[string]string{"status": "ok"})
 
-// Dynamic JSON — derive the response from the incoming request
+// Dynamic JSON: derive the response from the incoming request
 .RespondJSON(200, func(r *http.Request) any {
     return map[string]string{"echo": r.URL.Query().Get("q")}
 })
@@ -172,7 +172,7 @@ reqs[0].Path                     // "/cover"
 
 ### Guards
 
-**`MustBeCalled()`** — fails the test at teardown if the route was never hit:
+**`MustBeCalled()`**: fails the test at teardown if the route was never hit:
 
 ```go
 stub.On("GET", "/cover").
@@ -180,7 +180,7 @@ stub.On("GET", "/cover").
 	RespondJSON(200, data)
 ```
 
-**`Strict()`** — fails the test immediately if any unregistered route is called:
+**`Strict()`**: fails the test immediately if any unregistered route is called:
 
 ```go
 stub := supergo.NewStub(t).

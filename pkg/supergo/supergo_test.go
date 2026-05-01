@@ -203,7 +203,7 @@ func TestAgentCookiePersistence(t *testing.T) {
 		Expect(200).
 		Test(t)
 
-	// Profile requires the session cookie — agent should send it automatically.
+	// Profile requires the session cookie; agent should send it automatically.
 	agent.Get("/profile").
 		Expect(200).
 		ExpectBodyContainsJSON("name", "alice").
@@ -373,7 +373,7 @@ func TestStubReceivedReturnsCopy(t *testing.T) {
 	b := stub.Received("GET", "/ping")
 
 	// Appending to one result must not affect the other.
-	a = append(a, &supergo.CapturedRequest{})
+	_ = append(a, &supergo.CapturedRequest{})
 	if len(b) != 1 {
 		t.Errorf("Received should return independent copies, but b grew to %d", len(b))
 	}
@@ -486,7 +486,7 @@ func TestStubMustBeCalledFails(t *testing.T) {
 
 	supergo.NewStub(spy).
 		On("GET", "/never").MustBeCalled().RespondJSON(200, nil)
-	// Never hit the stub — MustBeCalled cleanup should fire an error into spy.
+	// Never hit the stub; MustBeCalled cleanup should fire an error into spy.
 }
 
 // spyT captures Errorf calls without failing the real test, allowing tests to
@@ -555,7 +555,7 @@ func TestStubSequenceRepeatsLast(t *testing.T) {
 		return string(b)
 	}
 
-	get() // 1st — "first"
+	get() // 1st call: "first"
 	if second := get(); !strings.Contains(second, "last") {
 		t.Errorf("expected second response to contain 'last', got: %s", second)
 	}
@@ -573,7 +573,7 @@ func TestStubSequenceThenRespondFn(t *testing.T) {
 			w.Write([]byte("custom")) //nolint:errcheck
 		})
 
-	http.Get(stub.URL + "/step") //nolint:errcheck — consume first
+	http.Get(stub.URL + "/step") //nolint:errcheck
 
 	resp, err := http.Get(stub.URL + "/step")
 	if err != nil {
