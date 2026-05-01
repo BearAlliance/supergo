@@ -246,3 +246,38 @@ func TestCreateBook(t *testing.T) {
     }
 }
 ```
+
+## Development
+
+### Setup
+
+This repo uses Go `1.26.2` and includes a [mise](https://mise.jdx.dev/) config in [`mise.toml`](./mise.toml).
+
+```bash
+mise install
+mise exec -- go version
+```
+
+If you do not use `mise`, install Go `1.26.2` manually and ensure `go` is on your `PATH`.
+
+### Test
+
+Run the full test suite:
+
+```bash
+go test ./...
+```
+
+Run the same race-enabled test command used in CI:
+
+```bash
+go test ./... -race
+```
+
+### Lint
+
+Run `golangci-lint` with the repo config:
+
+```bash
+golangci-lint run
+```
