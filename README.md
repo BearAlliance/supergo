@@ -1,6 +1,6 @@
 # supergo
 
-A [supertest](https://www.npmjs.com/package/supertest)-inspired HTTP testing library for Go.
+A [supertest](https://github.com/forwardemail/supertest)-inspired HTTP testing library for Go.
 Fluent, chainable assertions for your HTTP handlers and first-class support for stubbing the external services they call.
 
 ```go
@@ -21,6 +21,8 @@ go get github.com/bearalliance/supergo
 Requires Go 1.22+.
 
 ## Testing your handler
+
+See [example](./example) for a full example.
 
 ### One-shot requests
 
