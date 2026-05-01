@@ -1,10 +1,7 @@
 package example_test
 
 import (
-	"encoding/json"
 	"fmt"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/bearalliance/go-super/example"
@@ -277,16 +274,11 @@ func TestAgentHistoryRecordsFullFlow(t *testing.T) {
 
 // TestCreateBookFetchesCoverURL demonstrates stubbing an outgoing HTTP call.
 // The bookstore calls an external cover service when creating a book; here we
-// spin up an httptest.Server as the stub and verify the returned book includes
-// the URL the stub provided.
+// use supergo.NewStub to stand in for that service and verify the returned book
+// includes the URL the stub provided.
 func TestCreateBookFetchesCoverURL(t *testing.T) {
-	var receivedQuery string
-	stub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		receivedQuery = r.URL.RawQuery
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{"url": "https://covers.example.com/go-book.jpg"})
-	}))
-	defer stub.Close()
+	stub := supergo.NewStub(t).
+		On("GET", "/cover").RespondJSON(200, map[string]string{"url": "https://covers.example.com/go-book.jpg"})
 
 	store := newAPI()
 	agent := supergo.NewAgent(example.NewRouter(store, stub.URL))
@@ -304,21 +296,23 @@ func TestCreateBookFetchesCoverURL(t *testing.T) {
 		Test(t)
 
 	// Verify the bookstore forwarded title and author to the cover service.
-	if !containsOnce([]byte(receivedQuery), "title=") {
-		t.Errorf("cover service not called with title param, got query: %s", receivedQuery)
+	reqs := stub.Received("GET", "/cover")
+	if len(reqs) != 1 {
+		t.Fatalf("expected cover service to be called once, got %d", len(reqs))
 	}
-	if !containsOnce([]byte(receivedQuery), "author=") {
-		t.Errorf("cover service not called with author param, got query: %s", receivedQuery)
+	if !containsOnce([]byte(reqs[0].RawQuery), "title=") {
+		t.Errorf("cover service not called with title param, got query: %s", reqs[0].RawQuery)
+	}
+	if !containsOnce([]byte(reqs[0].RawQuery), "author=") {
+		t.Errorf("cover service not called with author param, got query: %s", reqs[0].RawQuery)
 	}
 }
 
 // TestCreateBookCoverServiceUnavailable shows graceful degradation: if the
 // cover service is down the book is still created, just without a cover URL.
 func TestCreateBookCoverServiceUnavailable(t *testing.T) {
-	stub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, "service unavailable", http.StatusServiceUnavailable)
-	}))
-	defer stub.Close()
+	stub := supergo.NewStub(t).
+		On("GET", "/cover").Respond(503, nil)
 
 	store := newAPI()
 	agent := supergo.NewAgent(example.NewRouter(store, stub.URL))
