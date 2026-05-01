@@ -500,6 +500,80 @@ func (s *spyT) Errorf(format string, args ...any) {
 	s.errors = append(s.errors, fmt.Sprintf(format, args...))
 }
 
+func TestStubSequenceTwoCalls(t *testing.T) {
+	stub := supergo.NewStub(t).
+		On("GET", "/step").
+		RespondJSON(200, map[string]string{"step": "first"}).
+		ThenRespondJSON(200, map[string]string{"step": "second"})
+
+	body := func() string {
+		resp, err := http.Get(stub.URL + "/step")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		defer resp.Body.Close()
+		b, _ := io.ReadAll(resp.Body)
+		return string(b)
+	}
+
+	if first := body(); !strings.Contains(first, "first") {
+		t.Errorf("expected first response to contain 'first', got: %s", first)
+	}
+	if second := body(); !strings.Contains(second, "second") {
+		t.Errorf("expected second response to contain 'second', got: %s", second)
+	}
+}
+
+func TestStubSequenceRepeatsLast(t *testing.T) {
+	stub := supergo.NewStub(t).
+		On("GET", "/step").
+		RespondJSON(200, map[string]string{"step": "first"}).
+		ThenRespondJSON(200, map[string]string{"step": "last"})
+
+	get := func() string {
+		resp, err := http.Get(stub.URL + "/step")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		defer resp.Body.Close()
+		b, _ := io.ReadAll(resp.Body)
+		return string(b)
+	}
+
+	get() // 1st — "first"
+	if second := get(); !strings.Contains(second, "last") {
+		t.Errorf("expected second response to contain 'last', got: %s", second)
+	}
+	if third := get(); !strings.Contains(third, "last") {
+		t.Errorf("expected third response to repeat last, got: %s", third)
+	}
+}
+
+func TestStubSequenceThenRespondFn(t *testing.T) {
+	stub := supergo.NewStub(t).
+		On("GET", "/step").
+		RespondJSON(200, map[string]string{"step": "first"}).
+		ThenRespondFn(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(202)
+			w.Write([]byte("custom")) //nolint:errcheck
+		})
+
+	http.Get(stub.URL + "/step") //nolint:errcheck — consume first
+
+	resp, err := http.Get(stub.URL + "/step")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 202 {
+		t.Errorf("expected 202 on second call, got %d", resp.StatusCode)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	if string(body) != "custom" {
+		t.Errorf("expected body 'custom', got %s", body)
+	}
+}
+
 func TestStubRespondFn(t *testing.T) {
 	stub := supergo.NewStub(t).
 		On("GET", "/custom").RespondFn(func(w http.ResponseWriter, r *http.Request) {

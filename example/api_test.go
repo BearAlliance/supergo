@@ -391,6 +391,35 @@ func TestCreateBookCoverURLReflectsTitle(t *testing.T) {
 		Test(t)
 }
 
+// TestCreateBookSequencedCovers shows Then* sequencing: each book creation gets
+// a distinct pre-set cover URL without needing a dynamic stub or shared state.
+func TestCreateBookSequencedCovers(t *testing.T) {
+	stub := supergo.NewStub(t).
+		On("GET", "/cover").
+		RespondJSON(200, map[string]string{"url": "https://covers.example.com/dune.jpg"}).
+		ThenRespondJSON(200, map[string]string{"url": "https://covers.example.com/foundation.jpg"})
+
+	store := newAPI()
+	agent := supergo.NewAgent(example.NewRouter(store, stub.URL))
+
+	agent.Post("/login").
+		SendJSON(map[string]string{"username": "admin", "password": "secret"}).
+		Expect(200).
+		Test(t)
+
+	agent.Post("/books").
+		SendJSON(example.Book{Title: "Dune", Author: "Herbert"}).
+		Expect(201).
+		ExpectBodyContainsJSON("cover_url", "https://covers.example.com/dune.jpg").
+		Test(t)
+
+	agent.Post("/books").
+		SendJSON(example.Book{Title: "Foundation", Author: "Asimov"}).
+		Expect(201).
+		ExpectBodyContainsJSON("cover_url", "https://covers.example.com/foundation.jpg").
+		Test(t)
+}
+
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 func containsOnce(body []byte, s string) bool {

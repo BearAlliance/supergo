@@ -24,7 +24,7 @@ type CapturedRequest struct {
 // Create one with NewStub; its URL field is ready to pass to the system under test.
 //
 // All On calls must be made before stub.URL is passed to the system under test.
-// Unregistered paths return 404 (the default ServeMux behaviour).
+// Unregistered paths return 404 by default; call Strict() to fail the test instead.
 type Stub struct {
 	// URL is the base URL of the stub server (e.g. "http://127.0.0.1:PORT"),
 	// with no trailing slash. Pass it to the system under test.
@@ -83,7 +83,7 @@ func (s *Stub) Received(method, path string) []*CapturedRequest {
 	return cp
 }
 
-func (s *Stub) register(method, path string, fn http.HandlerFunc) {
+func (s *Stub) registerSequence(method, path string, seq *StubSequence) {
 	pattern := method + " " + path
 	s.mux.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
 		bodyBytes, _ := io.ReadAll(r.Body)
@@ -100,6 +100,14 @@ func (s *Stub) register(method, path string, fn http.HandlerFunc) {
 		s.calls[pattern] = append(s.calls[pattern], cap)
 		s.mu.Unlock()
 
+		seq.mu.Lock()
+		idx := seq.callIndex
+		if idx < len(seq.handlers)-1 {
+			seq.callIndex++
+		}
+		fn := seq.handlers[idx]
+		seq.mu.Unlock()
+
 		// Restore body so RespondFn handlers can read it if needed.
 		r.Body = io.NopCloser(bytes.NewReader(bodyBytes))
 		fn(w, r)
@@ -111,43 +119,6 @@ type StubRoute struct {
 	stub   *Stub
 	method string
 	path   string
-}
-
-// Respond registers a fixed-status, fixed-body response for this route.
-// body may be nil to produce an empty response body.
-func (sr *StubRoute) Respond(status int, body []byte) *Stub {
-	return sr.RespondFn(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(status)
-		if len(body) > 0 {
-			w.Write(body) //nolint:errcheck
-		}
-	})
-}
-
-// RespondJSON registers a response that sets Content-Type: application/json
-// and encodes v as JSON. v may be either:
-//
-//   - a static value, marshalled once at registration time (panics immediately
-//     if the value cannot be encoded), or
-//   - a func(*http.Request) any, called on every request so the response data
-//     can be derived from the incoming request (e.g. echoing a query parameter).
-func (sr *StubRoute) RespondJSON(status int, v any) *Stub {
-	if fn, ok := v.(func(*http.Request) any); ok {
-		return sr.RespondFn(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(status)
-			json.NewEncoder(w).Encode(fn(r)) //nolint:errcheck
-		})
-	}
-	b, err := json.Marshal(v)
-	if err != nil {
-		panic("supergo: RespondJSON could not encode value: " + err.Error())
-	}
-	return sr.RespondFn(func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(status)
-		w.Write(b) //nolint:errcheck
-	})
 }
 
 // MustBeCalled registers a cleanup assertion that fails the test if this route
@@ -164,9 +135,93 @@ func (sr *StubRoute) MustBeCalled() *StubRoute {
 	return sr
 }
 
+// Respond registers a fixed-status, fixed-body response for this route.
+// body may be nil to produce an empty response body.
+func (sr *StubRoute) Respond(status int, body []byte) *StubSequence {
+	return sr.RespondFn(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(status)
+		if len(body) > 0 {
+			w.Write(body) //nolint:errcheck
+		}
+	})
+}
+
+// RespondJSON registers a response that sets Content-Type: application/json
+// and encodes v as JSON. v may be either:
+//
+//   - a static value, marshalled once at registration time (panics immediately
+//     if the value cannot be encoded), or
+//   - a func(*http.Request) any, called on every request so the response data
+//     can be derived from the incoming request (e.g. echoing a query parameter).
+func (sr *StubRoute) RespondJSON(status int, v any) *StubSequence {
+	return sr.RespondFn(makeJSONHandler(status, v))
+}
+
 // RespondFn registers a raw HandlerFunc for this route, giving full control
 // over headers, status, and body. The stub's capture logic still runs before fn.
-func (sr *StubRoute) RespondFn(fn http.HandlerFunc) *Stub {
-	sr.stub.register(sr.method, sr.path, fn)
-	return sr.stub
+func (sr *StubRoute) RespondFn(fn http.HandlerFunc) *StubSequence {
+	seq := &StubSequence{Stub: sr.stub, handlers: []http.HandlerFunc{fn}}
+	sr.stub.registerSequence(sr.method, sr.path, seq)
+	return seq
+}
+
+// StubSequence is returned by StubRoute terminal methods. It exposes Then*
+// methods for building ordered response sequences and embeds *Stub so URL,
+// On, Received, and Strict are all accessible directly.
+type StubSequence struct {
+	*Stub
+	mu        sync.Mutex
+	handlers  []http.HandlerFunc
+	callIndex int
+}
+
+// ThenRespond appends a fixed-status, fixed-body response to the sequence.
+func (ss *StubSequence) ThenRespond(status int, body []byte) *StubSequence {
+	ss.mu.Lock()
+	defer ss.mu.Unlock()
+	ss.handlers = append(ss.handlers, func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(status)
+		if len(body) > 0 {
+			w.Write(body) //nolint:errcheck
+		}
+	})
+	return ss
+}
+
+// ThenRespondJSON appends a JSON response to the sequence. v follows the same
+// static/dynamic rules as RespondJSON.
+func (ss *StubSequence) ThenRespondJSON(status int, v any) *StubSequence {
+	ss.mu.Lock()
+	defer ss.mu.Unlock()
+	ss.handlers = append(ss.handlers, makeJSONHandler(status, v))
+	return ss
+}
+
+// ThenRespondFn appends a raw HandlerFunc to the sequence.
+func (ss *StubSequence) ThenRespondFn(fn http.HandlerFunc) *StubSequence {
+	ss.mu.Lock()
+	defer ss.mu.Unlock()
+	ss.handlers = append(ss.handlers, fn)
+	return ss
+}
+
+// makeJSONHandler builds a handler that responds with JSON. v may be a static
+// value (marshalled once) or a func(*http.Request) any (called per request).
+func makeJSONHandler(status int, v any) http.HandlerFunc {
+	if fn, ok := v.(func(*http.Request) any); ok {
+		return func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(status)
+			json.NewEncoder(w).Encode(fn(r)) //nolint:errcheck
+		}
+	}
+	b, err := json.Marshal(v)
+	if err != nil {
+		panic("supergo: RespondJSON could not encode value: " + err.Error())
+	}
+	return func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(status)
+		w.Write(b) //nolint:errcheck
+	}
 }
