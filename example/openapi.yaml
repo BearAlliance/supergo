@@ -1,0 +1,370 @@
+openapi: 3.0.3
+info:
+  title: Example Bookstore API
+  version: 1.0.0
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  description: |
+    OpenAPI v3 specification for the example bookstore API implemented in
+    `example/api.go`.
+servers:
+  - url: http://localhost
+tags:
+  - name: Auth
+    description: Session-oriented authentication endpoints.
+  - name: Books
+    description: Endpoints for listing, retrieving, creating, and deleting books.
+paths:
+  /login:
+    post:
+      tags: [Auth]
+      summary: Create a session
+      description: Authenticates the fixed demo user and sets a `session` cookie.
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            examples:
+              admin:
+                value:
+                  username: admin
+                  password: secret
+      responses:
+        '200':
+          description: Authenticated successfully.
+          headers:
+            Set-Cookie:
+              description: Session cookie used by protected endpoints.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+              examples:
+                success:
+                  value:
+                    token: tok-admin
+        '400':
+          description: Request body was not valid JSON.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalidBody:
+                  value:
+                    error: invalid body
+        '401':
+          description: Credentials were rejected.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalidCredentials:
+                  value:
+                    error: invalid credentials
+
+  /logout:
+    post:
+      tags: [Auth]
+      summary: Clear the current session
+      description: |
+        Clears the `session` cookie. This endpoint always returns `204`, even if
+        no session cookie is present.
+      operationId: logout
+      security: []
+      responses:
+        '204':
+          description: Session cleared.
+          headers:
+            Set-Cookie:
+              description: Expired session cookie.
+              schema:
+                type: string
+
+  /books:
+    get:
+      tags: [Books]
+      summary: List books
+      description: Returns all books, optionally filtered by exact author match.
+      operationId: listBooks
+      security: []
+      parameters:
+        - name: author
+          in: query
+          required: false
+          description: Exact author name to filter by.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Matching books.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Book'
+              examples:
+                empty:
+                  value: []
+                seeded:
+                  value:
+                    - id: 1
+                      title: The Go Programming Language
+                      author: Donovan
+                    - id: 2
+                      title: Clean Code
+                      author: Martin
+    post:
+      tags: [Books]
+      summary: Create a book
+      description: |
+        Creates a book and assigns the next numeric ID. Requires the `session`
+        cookie returned by `POST /login`.
+      operationId: createBook
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBookRequest'
+            examples:
+              basic:
+                value:
+                  title: Refactoring
+                  author: Fowler
+      responses:
+        '201':
+          description: Book created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Book'
+              examples:
+                created:
+                  value:
+                    id: 1
+                    title: Refactoring
+                    author: Fowler
+                withCover:
+                  value:
+                    id: 1
+                    title: The Go Programming Language
+                    author: Donovan
+                    cover_url: https://covers.example.com/go-book.jpg
+        '400':
+          description: Request body was not valid JSON.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalidBody:
+                  value:
+                    error: invalid body
+        '401':
+          description: Authentication failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                notAuthenticated:
+                  value:
+                    error: not authenticated
+                invalidSession:
+                  value:
+                    error: invalid session
+
+  /books/{id}:
+    get:
+      tags: [Books]
+      summary: Get a book
+      operationId: getBook
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/BookId'
+      responses:
+        '200':
+          description: Book found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Book'
+              examples:
+                found:
+                  value:
+                    id: 1
+                    title: SICP
+                    author: Abelson
+        '400':
+          description: Path parameter was not a valid integer.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalidId:
+                  value:
+                    error: invalid id
+        '404':
+          description: No book with that ID exists.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                notFound:
+                  value:
+                    error: not found
+    delete:
+      tags: [Books]
+      summary: Delete a book
+      operationId: deleteBook
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/BookId'
+      responses:
+        '204':
+          description: Book deleted.
+        '400':
+          description: Path parameter was not a valid integer.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalidId:
+                  value:
+                    error: invalid id
+        '401':
+          description: Authentication failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                notAuthenticated:
+                  value:
+                    error: not authenticated
+                invalidSession:
+                  value:
+                    error: invalid session
+        '404':
+          description: No book with that ID exists.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                notFound:
+                  value:
+                    error: not found
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: session
+
+  parameters:
+    BookId:
+      name: id
+      in: path
+      required: true
+      description: Numeric book identifier.
+      schema:
+        type: integer
+        minimum: 1
+
+  schemas:
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          example: admin
+        password:
+          type: string
+          example: secret
+
+    LoginResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - token
+      properties:
+        token:
+          type: string
+          example: tok-admin
+
+    Book:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - title
+        - author
+      properties:
+        id:
+          type: integer
+          minimum: 1
+          example: 1
+        title:
+          type: string
+          example: Dune
+        author:
+          type: string
+          example: Herbert
+        cover_url:
+          type: string
+          format: uri
+          example: https://covers.example.com/dune.jpg
+
+    CreateBookRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - title
+        - author
+      properties:
+        title:
+          type: string
+          example: Refactoring
+        author:
+          type: string
+          example: Fowler
+        cover_url:
+          type: string
+          format: uri
+          description: |
+            Optional client-supplied cover URL. When the example app is
+            configured with a cover service, that value may be replaced by the
+            fetched URL.
+
+    Error:
+      type: object
+      additionalProperties: false
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Error message returned by the API.
+          example: invalid body

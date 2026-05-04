@@ -92,9 +92,28 @@ All assertion methods return the request for chaining. Assertions run when `.Tes
 | `.ExpectBodyContains(substr)`          | Body contains substring                                   |
 | `.ExpectBodyMatchesJSON(v)`            | Deep equality after JSON round-trip                       |
 | `.ExpectBodyContainsJSON(path, value)` | Dot-path traversal, e.g. `"users.0.name"`                 |
+| `.ExpectMatchesSpec(spec)`             | Response matches the OpenAPI operation for the request    |
 | `.ExpectFn(func(*Response) error)`     | Custom assertion                                          |
 
 `.Test(t)` executes the request, runs all assertions, and returns `*Response` for further inspection.
+
+### OpenAPI assertions
+
+Load a spec once and reuse it across requests:
+
+```go
+spec := supergo.MustOpenAPISpec("example/openapi.yaml")
+
+supergo.New(handler).
+    Get("/books/1").
+    Expect(200).
+    ExpectMatchesSpec(spec).
+    Test(t)
+```
+
+`ExpectMatchesSpec` infers the OpenAPI operation from the request method and path,
+including templated paths like `/books/{id}`, then validates the response status,
+content type, and JSON body shape against the declared response schema.
 
 ## Agent history
 

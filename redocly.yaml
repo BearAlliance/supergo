@@ -1,0 +1,6 @@
+extends:
+  - recommended
+rules:
+  # Disable rules that are not relevant to our API example
+  operation-4xx-response: off
+  no-server-example.com: off

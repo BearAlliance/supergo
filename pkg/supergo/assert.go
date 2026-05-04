@@ -143,6 +143,22 @@ func (r *Request) ExpectFn(fn func(res *Response) error) *Request {
 	return r
 }
 
+// ExpectMatchesSpec asserts that the response matches the OpenAPI operation
+// inferred from the request method and path.
+func (r *Request) ExpectMatchesSpec(spec *OpenAPISpec) *Request {
+	if spec == nil {
+		panic("supergo: ExpectMatchesSpec requires a non-nil OpenAPI spec")
+	}
+	r.assertionNames = append(r.assertionNames, "matches OpenAPI spec")
+	r.assertions = append(r.assertions, func(res *Response, t testing.TB) {
+		t.Helper()
+		if err := spec.validateResponse(r.method, r.path, res); err != nil {
+			t.Errorf("OpenAPI assertion failed: %v", err)
+		}
+	})
+	return r
+}
+
 // Test executes the request (if not already done), runs all queued assertions
 // using t.Errorf so every assertion is evaluated, records history on the agent
 // (if any), and returns the Response for further inspection.

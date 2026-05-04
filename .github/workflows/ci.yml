@@ -18,6 +18,16 @@ jobs:
           cache: true
       - run: go test ./... -race
 
+  openapi:
+    name: OpenAPI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - run: npx @redocly/cli@2.30.3 lint example/openapi.yaml
+
   lint:
     name: Lint
     runs-on: ubuntu-latest
