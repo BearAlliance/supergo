@@ -35,8 +35,8 @@ func TestListBooksReturnsSeededBooks(t *testing.T) {
 	supergo.New(example.NewRouter(store)).
 		Get("/books").
 		Expect(200).
-		ExpectBodyContainsJSON("0.title", "The Go Programming Language").
-		ExpectBodyContainsJSON("1.title", "Clean Code").
+		ExpectBodyArrayContains("", map[string]string{"title": "The Go Programming Language", "author": "Donovan"}).
+		ExpectBodyArrayContains("", map[string]string{"title": "Clean Code", "author": "Martin"}).
 		Test(t)
 }
 

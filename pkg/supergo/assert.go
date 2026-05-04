@@ -108,6 +108,24 @@ func (r *Request) ExpectBodyMatchesJSON(v interface{}) *Request {
 	return r
 }
 
+// ExpectBodyArrayContains asserts that the JSON array at `path` contains at least one
+// element that matches expected using JSON subset semantics. Pass an empty path
+// to target a top-level array response.
+func (r *Request) ExpectBodyArrayContains(path string, expected interface{}) *Request {
+	desc := "body JSON array contains element"
+	if path != "" {
+		desc = fmt.Sprintf("body JSON array at path %q contains element", path)
+	}
+	r.assertionNames = append(r.assertionNames, desc)
+	r.assertions = append(r.assertions, func(res *Response, t testing.TB) {
+		t.Helper()
+		if err := (jsonArrayContainsMatcher{path: path, expected: expected}).match(res.Body); err != nil {
+			t.Errorf("%v", err)
+		}
+	})
+	return r
+}
+
 // ExpectBodyContainsJSON traverses the response body JSON using dot-path notation
 // (e.g. "users.0.name") and asserts that the value at that path equals expected.
 func (r *Request) ExpectBodyContainsJSON(path string, expected interface{}) *Request {
