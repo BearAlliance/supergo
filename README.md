@@ -93,7 +93,7 @@ All assertion methods return the request for chaining. Assertions run when `.Tes
 | `.ExpectBodyMatchesJSON(v)`            | Deep equality after JSON round-trip                       |                                                                                                   |
 | `.ExpectBodyArrayContains(path, v)`    | JSON array at `path` contains an element matching `v`     | Use `""` for top-level array responses, or pass a dot path such as `"foo.bar"` for nested arrays. |
 | `.ExpectBodyContainsJSON(path, value)` | Dot-path traversal, e.g. `"users.0.name"`                 |                                                                                                   |
-| `.ExpectMatchesSpec(spec)`             | Response matches the OpenAPI operation for the request    |
+| `.ExpectMatchesSpec(spec)`             | Response matches the OpenAPI operation for the request    | Load the spec once with `MustOpenAPISpec` or `LoadOpenAPISpec` and reuse it across requests.      |
 | `.ExpectFn(func(*Response) error)`     | Custom assertion                                          |                                                                                                   |
 
 `.Test(t)` executes the request, runs all assertions, and returns `*Response` for further inspection.
@@ -148,6 +148,22 @@ handler := NewRouterWithConfig(store, Config{
     HTTPClient:      client,
 })
 ```
+
+### Stub methods
+
+| Method                        | Purpose                                                       | Notes                                                                                                    |
+|-------------------------------|---------------------------------------------------------------|----------------------------------------------------------------------------------------------------------|
+| `supergo.NewStub(t)`          | Create a real TCP stub server for outbound HTTP dependencies  | The server closes automatically via `t.Cleanup`; use `stub.URL` as the dependency base URL.              |
+| `.Strict()`                   | Fail immediately on any unregistered request                  | Unregistered routes otherwise return `404` by default. Call before `On(...)`.                            |
+| `.On(method, path)`           | Register one stubbed route and start configuring its response | Returns a `*StubRoute`; `method` should be uppercase and `path` should start with `/`.                   |
+| `.MustBeCalled()`             | Assert that a registered route was hit at least once          | Registers a teardown check; chain it before `Respond*`.                                                  |
+| `.Respond(status, body)`      | Return a fixed status and raw byte body                       | `body` may be `nil` for an empty response.                                                               |
+| `.RespondJSON(status, v)`     | Return JSON with `Content-Type: application/json`             | `v` can be a static value or `func(*http.Request) any` for per-request dynamic responses.                |
+| `.RespondFn(fn)`              | Return a fully custom response                                | Full control over headers, status, and body; request capture still happens automatically.                |
+| `.ThenRespond(status, body)`  | Append the next raw response in a sequence                    | Available on the `*StubSequence` returned by `Respond*`; the last response repeats for later calls.      |
+| `.ThenRespondJSON(status, v)` | Append the next JSON response in a sequence                   | Supports the same static or dynamic `v` forms as `RespondJSON`.                                          |
+| `.ThenRespondFn(fn)`          | Append the next fully custom response in a sequence           | Use when later calls need custom branching or headers.                                                   |
+| `.Received(method, path)`     | Inspect captured requests for a route                         | Returns requests in arrival order; each entry exposes `Query()`, `Header`, `Body`, `Method`, and `Path`. |
 
 The server closes automatically via `t.Cleanup`.
 
