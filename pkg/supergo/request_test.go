@@ -82,6 +82,61 @@ func TestExpectBodyMatchesJSON(t *testing.T) {
 		Test(t)
 }
 
+func TestExpectBodyArrayContains(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintln(w, `[{"name":"alice","role":"admin"},{"name":"bob","role":"user"}]`)
+	})
+
+	supergo.New(handler).
+		Get("/").
+		Expect(200).
+		ExpectBodyArrayContains("", map[string]string{"name": "alice"}).
+		ExpectBodyArrayContains("", map[string]string{"name": "bob", "role": "user"}).
+		Test(t)
+}
+
+func TestExpectBodyArrayContainsAtPath(t *testing.T) {
+	supergo.New(testMux()).
+		Get("/users").
+		Expect(200).
+		ExpectBodyArrayContains("users", map[string]string{"name": "alice"}).
+		ExpectBodyArrayContains("users", map[string]string{"name": "bob"}).
+		Test(t)
+}
+
+func TestExpectBodyArrayContainsFailsForNonArrayBody(t *testing.T) {
+	spy := &spyT{T: t}
+
+	supergo.New(testMux()).
+		Get("/users").
+		ExpectBodyArrayContains("", map[string]string{"name": "alice"}).
+		Test(spy)
+
+	if len(spy.errors) == 0 {
+		t.Fatal("expected non-array body failure")
+	}
+	if !strings.Contains(spy.errors[0], "response body is not a JSON array") {
+		t.Fatalf("expected non-array error, got: %v", spy.errors)
+	}
+}
+
+func TestExpectBodyArrayContainsFailsForNonArrayPath(t *testing.T) {
+	spy := &spyT{T: t}
+
+	supergo.New(testMux()).
+		Get("/users").
+		ExpectBodyArrayContains("users.0", map[string]string{"name": "alice"}).
+		Test(spy)
+
+	if len(spy.errors) == 0 {
+		t.Fatal("expected non-array path failure")
+	}
+	if !strings.Contains(spy.errors[0], `JSON path "users.0" does not point to a JSON array`) {
+		t.Fatalf("expected non-array path error, got: %v", spy.errors)
+	}
+}
+
 func TestSendJSON(t *testing.T) {
 	supergo.New(testMux()).
 		Post("/users").

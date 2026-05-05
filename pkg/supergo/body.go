@@ -71,6 +71,54 @@ func (m jsonContainsMatcher) match(body []byte) error {
 	return nil
 }
 
+// jsonArrayContainsMatcher checks that a JSON value at path is an array and
+// that at least one element contains the expected value.
+type jsonArrayContainsMatcher struct {
+	path     string
+	expected interface{}
+}
+
+func (m jsonArrayContainsMatcher) match(body []byte) error {
+	var actual interface{}
+	if err := json.Unmarshal(body, &actual); err != nil {
+		return fmt.Errorf("response body is not valid JSON: %v\nbody: %s", err, string(body))
+	}
+
+	target := actual
+	if m.path != "" {
+		var err error
+		target, err = dotPathGet(actual, m.path)
+		if err != nil {
+			return fmt.Errorf("JSON path %q: %v", m.path, err)
+		}
+	}
+
+	arr, ok := target.([]interface{})
+	if !ok {
+		if m.path == "" {
+			return fmt.Errorf("response body is not a JSON array\nbody: %s", string(body))
+		}
+		return fmt.Errorf("JSON path %q does not point to a JSON array\nbody: %s", m.path, string(body))
+	}
+
+	b, _ := json.Marshal(m.expected)
+	var normalized interface{}
+	json.Unmarshal(b, &normalized) //nolint:errcheck
+
+	for i, item := range arr {
+		if err := jsonContains(normalized, item); err == nil {
+			return nil
+		} else if i == len(arr)-1 {
+			break
+		}
+	}
+
+	if m.path == "" {
+		return fmt.Errorf("body JSON array does not contain expected element: %s\nbody: %s", string(b), string(body))
+	}
+	return fmt.Errorf("body JSON array at path %q does not contain expected element: %s\nbody: %s", m.path, string(b), string(body))
+}
+
 // jsonContains recursively checks that every key/value in expected exists in actual.
 func jsonContains(expected, actual interface{}) error {
 	switch exp := expected.(type) {

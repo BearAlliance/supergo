@@ -82,18 +82,19 @@ supergo.NewServer(&http.Server{Handler: mux}).
 
 All assertion methods return the request for chaining. Assertions run when `.Test(t)` is called.
 
-| Method                                 | Checks                                                    |
-|----------------------------------------|-----------------------------------------------------------|
-| `.Expect(status)`                      | HTTP status code                                          |
-| `.ExpectHeader(key, substr)`           | Header contains substring (key is case-insensitive)       |
-| `.ExpectHeaderExact(key, value)`       | Header exact match                                        |
-| `.ExpectBody(expected)`                | JSON subset if valid JSON, trimmed exact string otherwise |
-| `.ExpectBodyExact(expected)`           | Trimmed exact string match                                |
-| `.ExpectBodyContains(substr)`          | Body contains substring                                   |
-| `.ExpectBodyMatchesJSON(v)`            | Deep equality after JSON round-trip                       |
-| `.ExpectBodyContainsJSON(path, value)` | Dot-path traversal, e.g. `"users.0.name"`                 |
+| Method                                 | Checks                                                    | Notes                                                                                             |
+|----------------------------------------|-----------------------------------------------------------|---------------------------------------------------------------------------------------------------|
+| `.Expect(status)`                      | HTTP status code                                          |                                                                                                   |
+| `.ExpectHeader(key, substr)`           | Header contains substring (key is case-insensitive)       |                                                                                                   |
+| `.ExpectHeaderExact(key, value)`       | Header exact match                                        |                                                                                                   |
+| `.ExpectBody(expected)`                | JSON subset if valid JSON, trimmed exact string otherwise |                                                                                                   |
+| `.ExpectBodyExact(expected)`           | Trimmed exact string match                                |                                                                                                   |
+| `.ExpectBodyContains(substr)`          | Body contains substring                                   |                                                                                                   |
+| `.ExpectBodyMatchesJSON(v)`            | Deep equality after JSON round-trip                       |                                                                                                   |
+| `.ExpectBodyArrayContains(path, v)`    | JSON array at `path` contains an element matching `v`     | Use `""` for top-level array responses, or pass a dot path such as `"foo.bar"` for nested arrays. |
+| `.ExpectBodyContainsJSON(path, value)` | Dot-path traversal, e.g. `"users.0.name"`                 |                                                                                                   |
 | `.ExpectMatchesSpec(spec)`             | Response matches the OpenAPI operation for the request    |
-| `.ExpectFn(func(*Response) error)`     | Custom assertion                                          |
+| `.ExpectFn(func(*Response) error)`     | Custom assertion                                          |                                                                                                   |
 
 `.Test(t)` executes the request, runs all assertions, and returns `*Response` for further inspection.
 
@@ -114,6 +115,7 @@ supergo.New(handler).
 `ExpectMatchesSpec` infers the OpenAPI operation from the request method and path,
 including templated paths like `/books/{id}`, then validates the response status,
 content type, and JSON body shape against the declared response schema.
+
 
 ## Agent history
 
