@@ -194,6 +194,37 @@ func TestStubMustBeCalledFails(t *testing.T) {
 		On("GET", "/never").MustBeCalled().RespondJSON(200, nil)
 }
 
+func TestStubMustAllBeCalledPasses(t *testing.T) {
+	stub := supergo.NewStub(t).
+		MustAllBeCalled().
+		On("GET", "/ping").RespondJSON(200, nil).
+		On("POST", "/pong").RespondJSON(201, nil)
+
+	http.Get(stub.URL + "/ping") //nolint:errcheck
+	http.Post(stub.URL+"/pong", "application/json", nil) //nolint:errcheck
+}
+
+func TestStubMustAllBeCalledFails(t *testing.T) {
+	spy := &spyT{T: t}
+
+	t.Cleanup(func() {
+		if len(spy.errors) == 0 {
+			t.Error("expected MustAllBeCalled to record an error for an uncalled route")
+			return
+		}
+		if !strings.Contains(spy.errors[0], "supergo: stub route POST /pong was never called") {
+			t.Fatalf("unexpected MustAllBeCalled error: %v", spy.errors)
+		}
+	})
+
+	stub := supergo.NewStub(spy).
+		MustAllBeCalled().
+		On("GET", "/ping").RespondJSON(200, nil).
+		On("POST", "/pong").RespondJSON(201, nil)
+
+	http.Get(stub.URL + "/ping") //nolint:errcheck
+}
+
 func TestStubCapturedRequestQuery(t *testing.T) {
 	stub := supergo.NewStub(t).
 		On("GET", "/search").RespondJSON(200, nil)
