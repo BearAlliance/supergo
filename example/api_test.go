@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"testing"
 
 	"github.com/bearalliance/supergo/example"
@@ -76,6 +77,19 @@ func TestGetBookFound(t *testing.T) {
 		ExpectBodyContainsJSON("title", "SICP").
 		ExpectBodyContainsJSON("author", "Abelson").
 		ExpectBodyContainsJSON("id", float64(1)).
+		Test(t)
+}
+
+func TestGetBookMatchesOpenAPISpec(t *testing.T) {
+	spec := supergo.MustOpenAPISpec(filepath.Join("openapi.yaml"))
+
+	store := newAPI()
+	store.Add(example.Book{Title: "SICP", Author: "Abelson"})
+
+	supergo.New(example.NewRouter(store)).
+		Get("/books/1").
+		Expect(200).
+		ExpectMatchesSpec(spec).
 		Test(t)
 }
 
