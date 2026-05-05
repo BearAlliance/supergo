@@ -151,19 +151,20 @@ handler := NewRouterWithConfig(store, Config{
 
 ### Stub methods
 
-| Method                        | Purpose                                                       | Notes                                                                                                    |
-|-------------------------------|---------------------------------------------------------------|----------------------------------------------------------------------------------------------------------|
-| `supergo.NewStub(t)`          | Create a real TCP stub server for outbound HTTP dependencies  | The server closes automatically via `t.Cleanup`; use `stub.URL` as the dependency base URL.              |
-| `.Strict()`                   | Fail immediately on any unregistered request                  | Unregistered routes otherwise return `404` by default. Call before `On(...)`.                            |
-| `.On(method, path)`           | Register one stubbed route and start configuring its response | Returns a `*StubRoute`; `method` should be uppercase and `path` should start with `/`.                   |
-| `.MustBeCalled()`             | Assert that a registered route was hit at least once          | Registers a teardown check; chain it before `Respond*`.                                                  |
-| `.Respond(status, body)`      | Return a fixed status and raw byte body                       | `body` may be `nil` for an empty response.                                                               |
-| `.RespondJSON(status, v)`     | Return JSON with `Content-Type: application/json`             | `v` can be a static value or `func(*http.Request) any` for per-request dynamic responses.                |
-| `.RespondFn(fn)`              | Return a fully custom response                                | Full control over headers, status, and body; request capture still happens automatically.                |
-| `.ThenRespond(status, body)`  | Append the next raw response in a sequence                    | Available on the `*StubSequence` returned by `Respond*`; the last response repeats for later calls.      |
-| `.ThenRespondJSON(status, v)` | Append the next JSON response in a sequence                   | Supports the same static or dynamic `v` forms as `RespondJSON`.                                          |
-| `.ThenRespondFn(fn)`          | Append the next fully custom response in a sequence           | Use when later calls need custom branching or headers.                                                   |
-| `.Received(method, path)`     | Inspect captured requests for a route                         | Returns requests in arrival order; each entry exposes `Query()`, `Header`, `Body`, `Method`, and `Path`. |
+| Method                        | Purpose                                                       | Notes                                                                                                     |
+|-------------------------------|---------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------|
+| `supergo.NewStub(t)`          | Create a real TCP stub server for outbound HTTP dependencies  | The server closes automatically via `t.Cleanup`; use `stub.URL` as the dependency base URL.               |
+| `.Strict()`                   | Fail immediately on any unregistered request                  | Unregistered routes otherwise return `404` by default. Call before `On(...)`.                             |
+| `.MustAllBeCalled()`          | Assert that every registered route was hit at least once      | Registers one teardown check for the whole stub; use it when all routes on the stub are expected to fire. |
+| `.On(method, path)`           | Register one stubbed route and start configuring its response | Returns a `*StubRoute`; `method` should be uppercase and `path` should start with `/`.                    |
+| `.MustBeCalled()`             | Assert that a registered route was hit at least once          | Registers a teardown check; chain it before `Respond*`.                                                   |
+| `.Respond(status, body)`      | Return a fixed status and raw byte body                       | `body` may be `nil` for an empty response.                                                                |
+| `.RespondJSON(status, v)`     | Return JSON with `Content-Type: application/json`             | `v` can be a static value or `func(*http.Request) any` for per-request dynamic responses.                 |
+| `.RespondFn(fn)`              | Return a fully custom response                                | Full control over headers, status, and body; request capture still happens automatically.                 |
+| `.ThenRespond(status, body)`  | Append the next raw response in a sequence                    | Available on the `*StubSequence` returned by `Respond*`; the last response repeats for later calls.       |
+| `.ThenRespondJSON(status, v)` | Append the next JSON response in a sequence                   | Supports the same static or dynamic `v` forms as `RespondJSON`.                                           |
+| `.ThenRespondFn(fn)`          | Append the next fully custom response in a sequence           | Use when later calls need custom branching or headers.                                                    |
+| `.Received(method, path)`     | Inspect captured requests for a route                         | Returns requests in arrival order; each entry exposes `Query()`, `Header`, `Body`, `Method`, and `Path`.  |
 
 The server closes automatically via `t.Cleanup`.
 
@@ -229,6 +230,17 @@ stub.On("GET", "/cover").
 	RespondJSON(200, data)
 ```
 
+**`MustAllBeCalled()`**: fails the test at teardown if any registered route on the stub was never hit:
+
+```go
+stub := supergo.NewStub(t).
+	MustAllBeCalled().
+	On("GET", "/cover").
+	RespondJSON(200, coverData).
+	On("POST", "/audit").
+	RespondJSON(202, auditData)
+```
+
 **`Strict()`**: fails the test immediately if any unregistered route is called:
 
 ```go
@@ -241,9 +253,8 @@ stub := supergo.NewStub(t).
 Both guards can be combined:
 
 ```go
-stub := supergo.NewStub(t).Strict().
+stub := supergo.NewStub(t).Strict().MustAllBeCalled().
     On("GET", "/cover").
-	MustBeCalled().
 	RespondJSON(200, data)
 ```
 

@@ -35,12 +35,13 @@ func (c *CapturedRequest) Query() url.Values {
 type Stub struct {
 	// URL is the base URL of the stub server (e.g. "http://127.0.0.1:PORT"),
 	// with no trailing slash. Pass it to the system under test.
-	URL    string
-	t      testing.TB
-	server *httptest.Server
-	mux    *http.ServeMux
-	mu     sync.Mutex
-	calls  map[string][]*CapturedRequest // key: "METHOD /path"
+	URL        string
+	t          testing.TB
+	server     *httptest.Server
+	mux        *http.ServeMux
+	mu         sync.Mutex
+	calls      map[string][]*CapturedRequest // key: "METHOD /path"
+	registered []string
 }
 
 // NewStub creates a stub HTTP server. The server is closed automatically via
@@ -78,10 +79,34 @@ func (s *Stub) On(method, path string) *StubRoute {
 	return &StubRoute{stub: s, method: method, path: path}
 }
 
+// MustAllBeCalled registers a cleanup assertion that fails the test if any
+// registered stub route receives no requests by the time the test ends.
+//
+// Call it once on the stub when every route you register for that stub should
+// be exercised:
+//
+//	supergo.NewStub(t).MustAllBeCalled().On("GET", "/cover").RespondJSON(200, ...)
+func (s *Stub) MustAllBeCalled() *Stub {
+	s.t.Cleanup(func() {
+		s.mu.Lock()
+		routes := append([]string(nil), s.registered...)
+		s.mu.Unlock()
+		for _, route := range routes {
+			if len(s.ReceivedParts(route)) == 0 {
+				s.t.Errorf("supergo: stub route %s was never called", route)
+			}
+		}
+	})
+	return s
+}
+
 // Received returns all requests captured for the given method and path, in
 // arrival order. Returns a non-nil empty slice if the route was never hit.
 func (s *Stub) Received(method, path string) []*CapturedRequest {
-	key := method + " " + path
+	return s.ReceivedParts(method + " " + path)
+}
+
+func (s *Stub) ReceivedParts(key string) []*CapturedRequest {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	got := s.calls[key]
@@ -92,6 +117,11 @@ func (s *Stub) Received(method, path string) []*CapturedRequest {
 
 func (s *Stub) registerSequence(method, path string, seq *StubSequence) {
 	pattern := method + " " + path
+	s.mu.Lock()
+	if !containsString(s.registered, pattern) {
+		s.registered = append(s.registered, pattern)
+	}
+	s.mu.Unlock()
 	s.mux.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
 		bodyBytes, _ := io.ReadAll(r.Body)
 		r.Body.Close()
@@ -170,6 +200,15 @@ func (sr *StubRoute) RespondFn(fn http.HandlerFunc) *StubSequence {
 	seq := &StubSequence{Stub: sr.stub, handlers: []http.HandlerFunc{fn}}
 	sr.stub.registerSequence(sr.method, sr.path, seq)
 	return seq
+}
+
+func containsString(xs []string, want string) bool {
+	for _, x := range xs {
+		if x == want {
+			return true
+		}
+	}
+	return false
 }
 
 // StubSequence is returned by StubRoute terminal methods. It exposes Then*

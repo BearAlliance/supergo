@@ -354,14 +354,14 @@ func TestCreateBookCoverServiceUnavailable(t *testing.T) {
 		Test(t)
 }
 
-// TestCreateBookStrictStub shows Strict() and MustBeCalled() used together:
-// any unexpected outbound request fails the test immediately, and the cover
-// service must be called at least once.
+// TestCreateBookStrictStub shows Strict() and MustAllBeCalled() used together:
+// any unexpected outbound request fails the test immediately, and every
+// registered stub route must be called before the test ends.
 func TestCreateBookStrictStub(t *testing.T) {
 	coverService := supergo.NewStub(t).
 		Strict().
+		MustAllBeCalled().
 		On("GET", "/cover").
-		MustBeCalled().
 		RespondJSON(200, map[string]string{"url": "https://covers.example.com/book.jpg"})
 
 	store := newAPI()
