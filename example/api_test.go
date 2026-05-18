@@ -449,6 +449,67 @@ func TestCreateBookSequencedCovers(t *testing.T) {
 		Test(t)
 }
 
+// ── Table-driven examples ─────────────────────────────────────────────────────
+
+// TestCreateBookTableDriven demonstrates table-driven testing with a stub: each
+// row configures the cover service to return a different response, then asserts
+// the correct book fields come back. The stub and assertions are driven entirely
+// by plain data in the table.
+func TestCreateBookTableDriven(t *testing.T) {
+	tests := []struct {
+		name        string
+		book        example.Book
+		coverStatus int
+		coverBody   map[string]string
+		wantStatus  int
+		wantJSON    map[string]any
+	}{
+		{
+			name:        "book includes cover URL when service succeeds",
+			book:        example.Book{Title: "Dune", Author: "Herbert"},
+			coverStatus: http.StatusOK,
+			coverBody:   map[string]string{"url": "https://covers.example.com/dune.jpg"},
+			wantStatus:  http.StatusCreated,
+			wantJSON:    map[string]any{"title": "Dune", "cover_url": "https://covers.example.com/dune.jpg"},
+		},
+		{
+			name:        "book is created without cover URL when service is unavailable",
+			book:        example.Book{Title: "Foundation", Author: "Asimov"},
+			coverStatus: http.StatusServiceUnavailable,
+			coverBody:   nil,
+			wantStatus:  http.StatusCreated,
+			wantJSON:    map[string]any{"title": "Foundation", "author": "Asimov"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			coverService := supergo.NewStub(t).
+				On("GET", "/cover").
+				RespondJSON(tc.coverStatus, tc.coverBody)
+
+			store := newAPI()
+			agent := supergo.NewAgent(example.NewRouterWithConfig(store, example.Config{
+				CoverServiceURL: coverService.URL,
+				HTTPClient:      supergo.NewOutboundHTTPClient(t, coverService.URL),
+			}))
+
+			agent.Post("/login").
+				SendJSON(map[string]string{"username": "admin", "password": "secret"}).
+				Expect(http.StatusOK).
+				Test(t)
+
+			req := agent.Post("/books").
+				SendJSON(tc.book).
+				Expect(tc.wantStatus)
+			for k, v := range tc.wantJSON {
+				req = req.ExpectBodyContainsJSON(k, v)
+			}
+			req.Test(t)
+		})
+	}
+}
+
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 func containsOnce(body []byte, s string) bool {
