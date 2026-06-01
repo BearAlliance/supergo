@@ -172,6 +172,21 @@ func (sr *StubRoute) MustBeCalled() *StubRoute {
 	return sr
 }
 
+// MustBeCalledTimes registers a cleanup assertion that fails the test if this
+// route is not called exactly n times by the time the test ends. Chain it
+// before the terminal Respond* call:
+//
+//	stub.On("GET", "/cover").MustBeCalledTimes(3).RespondJSON(200, ...)
+func (sr *StubRoute) MustBeCalledTimes(n int) *StubRoute {
+	sr.stub.t.Cleanup(func() {
+		got := len(sr.stub.Received(sr.method, sr.path))
+		if got != n {
+			sr.stub.t.Errorf("supergo: stub route %s %s: expected %d call(s), got %d", sr.method, sr.path, n, got)
+		}
+	})
+	return sr
+}
+
 // Respond registers a fixed-status, fixed-body response for this route.
 // body may be nil to produce an empty response body.
 func (sr *StubRoute) Respond(status int, body []byte) *StubSequence {
