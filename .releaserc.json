@@ -6,17 +6,17 @@
       "preset": "conventionalcommits",
       "presetConfig": {
         "types": [
-          { "type": "feat", "section": "Features", "hidden": false },
-          { "type": "fix", "section": "Bug Fixes", "hidden": false },
-          { "type": "perf", "section": "Performance", "hidden": false },
-          { "type": "refactor", "section": "Refactoring", "hidden": false },
-          { "type": "docs", "section": "Documentation", "hidden": false },
-          { "type": "test", "section": "Tests", "hidden": false },
-          { "type": "build", "section": "Build System", "hidden": false },
-          { "type": "ci", "section": "CI", "hidden": false },
-          { "type": "chore", "section": "Chores", "hidden": false },
-          { "type": "style", "section": "Styles", "hidden": false },
-          { "type": "revert", "section": "Reverts", "hidden": false }
+          { "type": "feat", "section": "Features", "effect": "bump" },
+          { "type": "fix", "section": "Bug Fixes", "effect": "bump" },
+          { "type": "perf", "section": "Performance", "effect": "bump" },
+          { "type": "refactor", "section": "Refactoring", "effect": "changelog" },
+          { "type": "docs", "section": "Documentation", "effect": "changelog" },
+          { "type": "test", "section": "Tests", "effect": "changelog" },
+          { "type": "build", "section": "Build System", "effect": "changelog" },
+          { "type": "ci", "section": "CI", "effect": "changelog" },
+          { "type": "chore", "section": "Chores", "effect": "changelog" },
+          { "type": "style", "section": "Styles", "effect": "changelog" },
+          { "type": "revert", "section": "Reverts", "effect": "changelog" }
         ]
       }
     }],
