@@ -1,3 +1,14 @@
 [tools]
-go = "latest"
+go = "1.26"
 node = "26"
+golangci-lint = "2.12.2"
+lefthook = "2.1.9"
+
+[hooks]
+enter = "lefthook install"
+
+[tasks.lint]
+run = "golangci-lint run"
+
+[tasks.test]
+run = "go test ./... -race"
