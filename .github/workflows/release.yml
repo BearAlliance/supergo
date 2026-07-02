@@ -23,7 +23,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: 26
       - name: Install semantic-release
         run: npm install --no-save semantic-release@25 conventional-changelog-conventionalcommits@10
       - name: Run semantic-release
