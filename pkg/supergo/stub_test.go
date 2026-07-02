@@ -181,6 +181,46 @@ func TestStubMustBeCalledPasses(t *testing.T) {
 	http.Get(stub.URL + "/ping") //nolint:errcheck
 }
 
+func TestStubMustBeCalledTimesPasses(t *testing.T) {
+	stub := supergo.NewStub(t).
+		On("GET", "/ping").MustBeCalledTimes(3).RespondJSON(200, nil)
+
+	http.Get(stub.URL + "/ping") //nolint:errcheck
+	http.Get(stub.URL + "/ping") //nolint:errcheck
+	http.Get(stub.URL + "/ping") //nolint:errcheck
+}
+
+func TestStubMustBeCalledTimesFailsTooFew(t *testing.T) {
+	spy := &spyT{T: t}
+
+	t.Cleanup(func() {
+		if len(spy.errors) == 0 {
+			t.Error("expected MustBeCalledTimes to record an error when called too few times")
+		}
+	})
+
+	stub := supergo.NewStub(spy).
+		On("GET", "/ping").MustBeCalledTimes(3).RespondJSON(200, nil)
+
+	http.Get(stub.URL + "/ping") //nolint:errcheck
+}
+
+func TestStubMustBeCalledTimesFailsTooMany(t *testing.T) {
+	spy := &spyT{T: t}
+
+	t.Cleanup(func() {
+		if len(spy.errors) == 0 {
+			t.Error("expected MustBeCalledTimes to record an error when called too many times")
+		}
+	})
+
+	stub := supergo.NewStub(spy).
+		On("GET", "/ping").MustBeCalledTimes(1).RespondJSON(200, nil)
+
+	http.Get(stub.URL + "/ping") //nolint:errcheck
+	http.Get(stub.URL + "/ping") //nolint:errcheck
+}
+
 func TestStubMustBeCalledFails(t *testing.T) {
 	spy := &spyT{T: t}
 

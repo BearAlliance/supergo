@@ -158,6 +158,7 @@ handler := NewRouterWithConfig(store, Config{
 | `.MustAllBeCalled()`          | Assert that every registered route was hit at least once      | Registers one teardown check for the whole stub; use it when all routes on the stub are expected to fire. |
 | `.On(method, path)`           | Register one stubbed route and start configuring its response | Returns a `*StubRoute`; `method` should be uppercase and `path` should start with `/`.                    |
 | `.MustBeCalled()`             | Assert that a registered route was hit at least once          | Registers a teardown check; chain it before `Respond*`.                                                   |
+| `.MustBeCalledTimes(n)`       | Assert that a registered route was hit exactly `n` times      | Registers a teardown check; chain it before `Respond*`. Subsumes `MustBeCalled()` when `n >= 1`.          |
 | `.Respond(status, body)`      | Return a fixed status and raw byte body                       | `body` may be `nil` for an empty response.                                                                |
 | `.RespondJSON(status, v)`     | Return JSON with `Content-Type: application/json`             | `v` can be a static value or `func(*http.Request) any` for per-request dynamic responses.                 |
 | `.RespondFn(fn)`              | Return a fully custom response                                | Full control over headers, status, and body; request capture still happens automatically.                 |
@@ -227,6 +228,14 @@ reqs[0].Path                     // "/cover"
 ```go
 stub.On("GET", "/cover").
 	MustBeCalled().
+	RespondJSON(200, data)
+```
+
+**`MustBeCalledTimes(n)`**: fails the test at teardown if the route was not called exactly `n` times:
+
+```go
+stub.On("GET", "/cover").
+	MustBeCalledTimes(2).
 	RespondJSON(200, data)
 ```
 

@@ -295,7 +295,7 @@ func TestAgentHistoryRecordsFullFlow(t *testing.T) {
 func TestCreateBookFetchesCoverURL(t *testing.T) {
 	coverService := supergo.NewStub(t).
 		On("GET", "/cover").
-		MustBeCalled().
+		MustBeCalledTimes(1).
 		RespondJSON(200, map[string]string{"url": "https://covers.example.com/go-book.jpg"})
 
 	store := newAPI()
@@ -318,9 +318,6 @@ func TestCreateBookFetchesCoverURL(t *testing.T) {
 
 	// Verify the bookstore forwarded title and author to the cover service.
 	reqs := coverService.Received("GET", "/cover")
-	if len(reqs) != 1 {
-		t.Fatalf("expected cover service to be called once, got %d", len(reqs))
-	}
 	if reqs[0].Query().Get("title") == "" {
 		t.Errorf("cover service not called with title param, got query: %s", reqs[0].RawQuery)
 	}
