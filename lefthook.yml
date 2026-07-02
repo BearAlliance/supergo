@@ -1,0 +1,6 @@
+pre-commit:
+  commands:
+    lint:
+      run: mise run lint
+    test:
+      run: mise run test
