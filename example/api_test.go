@@ -1,10 +1,12 @@
 package example_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	"github.com/bearalliance/supergo/example"
@@ -323,6 +325,81 @@ func TestCreateBookFetchesCoverURL(t *testing.T) {
 	}
 	if reqs[0].Query().Get("author") == "" {
 		t.Errorf("cover service not called with author param, got query: %s", reqs[0].RawQuery)
+	}
+}
+
+// coverFakeHandler is a stateful in-memory stand-in for the cover service. It
+// assigns a stable cover id per unique title on first request and reuses it on
+// later requests, so its responses depend on prior calls. This is behavior a
+// stub's canned responses cannot express.
+func coverFakeHandler() http.Handler {
+	mux := http.NewServeMux()
+	var mu sync.Mutex
+	ids := map[string]int{}
+	next := 1
+
+	mux.HandleFunc("GET /cover", func(w http.ResponseWriter, r *http.Request) {
+		title := r.URL.Query().Get("title")
+		mu.Lock()
+		id, ok := ids[title]
+		if !ok {
+			id = next
+			next++
+			ids[title] = id
+		}
+		mu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{ //nolint:errcheck
+			"url": fmt.Sprintf("https://covers.example.com/%d.jpg", id),
+		})
+	})
+
+	return mux
+}
+
+// TestCreateBookWithStatefulCoverFake uses supergo.NewFake to stand in for the
+// cover service with a real in-memory implementation instead of canned
+// responses. The fake persists state across calls: a repeated title gets the
+// same cover id, while a new title advances to the next one.
+func TestCreateBookWithStatefulCoverFake(t *testing.T) {
+	coverService := supergo.NewFake(t, coverFakeHandler()).
+		MustBeCalled("GET", "/cover")
+
+	store := newAPI()
+	agent := supergo.NewAgent(example.NewRouterWithConfig(store, example.Config{
+		CoverServiceURL: coverService.URL,
+		HTTPClient:      supergo.NewOutboundHTTPClient(t, coverService.URL),
+	}))
+
+	agent.Post("/login").
+		SendJSON(map[string]string{"username": "admin", "password": "secret"}).
+		Expect(200).
+		Test(t)
+
+	// First title gets cover id 1.
+	agent.Post("/books").
+		SendJSON(example.Book{Title: "Dune", Author: "Herbert"}).
+		Expect(201).
+		ExpectBodyContainsJSON("cover_url", "https://covers.example.com/1.jpg").
+		Test(t)
+
+	// A different title advances the fake's state to id 2.
+	agent.Post("/books").
+		SendJSON(example.Book{Title: "Clean Code", Author: "Martin"}).
+		Expect(201).
+		ExpectBodyContainsJSON("cover_url", "https://covers.example.com/2.jpg").
+		Test(t)
+
+	// Re-creating the first title reuses the remembered id: the fake persisted
+	// state across requests, which is the point of a fake over a stub.
+	agent.Post("/books").
+		SendJSON(example.Book{Title: "Dune", Author: "Herbert"}).
+		Expect(201).
+		ExpectBodyContainsJSON("cover_url", "https://covers.example.com/1.jpg").
+		Test(t)
+
+	if n := len(coverService.Received("GET", "/cover")); n != 3 {
+		t.Errorf("expected cover service to be called 3 times, got %d", n)
 	}
 }
 
