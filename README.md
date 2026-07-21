@@ -267,6 +267,51 @@ stub := supergo.NewStub(t).Strict().MustAllBeCalled().
 	RespondJSON(200, data)
 ```
 
+## Faking stateful external dependencies
+
+A stub returns canned responses per route. A **fake** goes one rung further: you
+give `NewFake` a real in-memory `http.Handler`, so a `POST` mutates state that a
+later `GET` reflects. Use a fake when the dependency's behavior, not just a fixed
+reply, matters to the test.
+
+You could host such a handler yourself with `httptest`; the reason to route it
+through supergo is what it wraps around your behavior:
+
+- **`VerifySpec` checks the fake against the real service's OpenAPI spec on every
+  call**, so the fake cannot silently drift from the contract it stands in for.
+  This is the failure mode hand-rolled fakes never catch: the fake keeps
+  returning a shape the real service stopped returning, tests stay green, prod
+  breaks.
+- The same request capture and interaction guards as stubs (`Received`,
+  `MustBeCalled`, `MustBeCalledTimes`) come for free, so the fake is also a spy.
+
+```go
+// coverService() returns your in-memory http.Handler with real behavior.
+fake := supergo.NewFake(t, coverService()).
+    VerifySpec(spec).                 // every response validated against the spec
+    MustBeCalled("GET", "/cover")     // interaction guard, checked at teardown
+
+handler := NewRouterWithConfig(store, Config{
+    CoverServiceURL: fake.URL,
+    HTTPClient:      supergo.NewOutboundHTTPClient(t, fake.URL),
+})
+
+// After the test runs, inspect what the handler sent:
+reqs := fake.Received("GET", "/cover")
+```
+
+### Fake methods
+
+| Method                                | Purpose                                                          | Notes                                                                                           |
+|---------------------------------------|------------------------------------------------------------------|-------------------------------------------------------------------------------------------------|
+| `supergo.NewFake(t, handler)`         | Create a real TCP server backed by your in-memory `http.Handler` | Closes automatically via `t.Cleanup`; use `fake.URL` as the dependency base URL.                |
+| `.VerifySpec(spec)`                   | Validate every response against the OpenAPI spec for its route   | Fails the test on schema/status/content-type drift, or on an operation the spec never declares. |
+| `.MustBeCalled(method, path)`         | Assert the route was hit at least once                           | Registers a teardown check. `path` matches the concrete request path, not a template.           |
+| `.MustBeCalledTimes(method, path, n)` | Assert the route was hit exactly `n` times                       | Registers a teardown check.                                                                     |
+| `.Received(method, path)`             | Inspect captured requests for a route                            | Same `CapturedRequest` values (`Query()`, `Header`, `Body`, `Method`, `Path`) as stubs.         |
+
+Load the spec once with `MustOpenAPISpec` or `LoadOpenAPISpec` and reuse it, the same way you do for `ExpectMatchesSpec`.
+
 ## Full example
 
 ```go
