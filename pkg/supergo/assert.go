@@ -132,18 +132,8 @@ func (r *Request) ExpectBodyContainsJSON(path string, expected interface{}) *Req
 	r.assertionNames = append(r.assertionNames, fmt.Sprintf("body JSON path %q", path))
 	r.assertions = append(r.assertions, func(res *Response, t testing.TB) {
 		t.Helper()
-		var root interface{}
-		if err := json.Unmarshal(res.Body, &root); err != nil {
-			t.Errorf("response body is not valid JSON: %v\nbody: %s", err, string(res.Body))
-			return
-		}
-		got, err := dotPathGet(root, path)
-		if err != nil {
-			t.Errorf("JSON path %q: %v", path, err)
-			return
-		}
-		if err := jsonContains(expected, got); err != nil {
-			t.Errorf("JSON path %q: %v", path, err)
+		if err := (jsonPathMatcher{path: path, expected: expected}).match(res.Body); err != nil {
+			t.Errorf("%v", err)
 		}
 	})
 	return r

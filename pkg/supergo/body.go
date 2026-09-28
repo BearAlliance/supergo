@@ -71,6 +71,27 @@ func (m jsonContainsMatcher) match(body []byte) error {
 	return nil
 }
 
+// jsonPathMatcher checks that the JSON value at a dot-path contains expected.
+type jsonPathMatcher struct {
+	path     string
+	expected interface{}
+}
+
+func (m jsonPathMatcher) match(body []byte) error {
+	var root interface{}
+	if err := json.Unmarshal(body, &root); err != nil {
+		return fmt.Errorf("response body is not valid JSON: %v\nbody: %s", err, string(body))
+	}
+	got, err := dotPathGet(root, m.path)
+	if err != nil {
+		return fmt.Errorf("JSON path %q: %v\nbody: %s", m.path, err, string(body))
+	}
+	if err := jsonContains(m.expected, got); err != nil {
+		return fmt.Errorf("JSON path %q: %v\nbody: %s", m.path, err, string(body))
+	}
+	return nil
+}
+
 // jsonArrayContainsMatcher checks that a JSON value at path is an array and
 // that at least one element contains the expected value.
 type jsonArrayContainsMatcher struct {
