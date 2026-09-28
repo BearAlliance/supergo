@@ -21,11 +21,12 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 26
-      - name: Install semantic-release
-        run: npm install --no-save semantic-release@25 conventional-changelog-conventionalcommits@10
+          cache: npm
+      - name: Install release tooling
+        run: npm ci
       - name: Run semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
