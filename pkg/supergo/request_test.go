@@ -67,6 +67,26 @@ func TestExpectBodyContainsJSON(t *testing.T) {
 		Test(t)
 }
 
+func TestExpectBodyContainsJSONFailurePrintsBody(t *testing.T) {
+	spy := &spyT{T: t}
+
+	supergo.New(testMux()).
+		Get("/users").
+		ExpectBodyContainsJSON("users.0.name", "carol").
+		ExpectBodyContainsJSON("users.5.name", "alice").
+		Test(spy)
+
+	if len(spy.errors) != 2 {
+		t.Fatalf("expected 2 failures, got: %v", spy.errors)
+	}
+	body := `body: {"users":[{"name":"alice"},{"name":"bob"}]}`
+	for _, e := range spy.errors {
+		if !strings.Contains(e, body) {
+			t.Errorf("expected failure to include body, got: %s", e)
+		}
+	}
+}
+
 func TestExpectBodyMatchesJSON(t *testing.T) {
 	type user struct {
 		Name string `json:"name"`
