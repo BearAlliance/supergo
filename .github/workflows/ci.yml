@@ -12,31 +12,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-          cache: true
-      - run: go test ./... -race
+      - uses: jdx/mise-action@v4
+      - run: mise run test
 
   openapi:
     name: OpenAPI
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 26
-      - run: npx @redocly/cli@2.30.3 lint example/openapi.yaml
+      - uses: jdx/mise-action@v4
+      - run: mise run openapi
 
   lint:
     name: Lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-          cache: true
-      - uses: golangci/golangci-lint-action@v9
-        with:
-          version: latest
+      - uses: jdx/mise-action@v4
+      - run: mise run lint

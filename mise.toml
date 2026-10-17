@@ -12,3 +12,6 @@ run = "golangci-lint run"
 
 [tasks.test]
 run = "go test ./... -race"
+
+[tasks.openapi]
+run = "npx @redocly/cli@2.30.3 lint example/openapi.yaml"
